@@ -12,6 +12,7 @@ import { CardDeck } from './components/CardDeck';
 import { LobbyModal } from './components/LobbyModal';
 import { HistoryModal } from './components/HistoryModal';
 import { ParticipantsModal } from './components/ParticipantsModal';
+import { SettingsModal } from './components/SettingsModal';
 import { ReactionsOverlay } from './components/ReactionsOverlay';
 import { soundEffects } from './utils/audio';
 
@@ -38,6 +39,7 @@ export default function App() {
   // Modals state
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
@@ -249,6 +251,7 @@ export default function App() {
             onToggleRole={handleToggleRole}
             onOpenHistory={() => setIsHistoryOpen(true)}
             onOpenParticipants={() => setIsParticipantsOpen(true)}
+            onOpenSettings={() => setIsSettingsOpen(true)}
             onUpdateSettings={handleUpdateSettings}
           />
 
@@ -304,6 +307,15 @@ export default function App() {
             participants={Object.values(room.participants)}
             selfId={selfId}
             onClose={() => setIsParticipantsOpen(false)}
+          />
+
+          {/* Settings Modal */}
+          <SettingsModal
+            isOpen={isSettingsOpen}
+            room={room}
+            onClose={() => setIsSettingsOpen(false)}
+            onChangeDeck={handleChangeDeck}
+            onUpdateSettings={handleUpdateSettings}
           />
         </div>
       )}

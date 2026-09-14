@@ -25,6 +25,7 @@ interface HeaderProps {
   onToggleRole: (newRole: ParticipantRole) => void;
   onOpenHistory: () => void;
   onOpenParticipants: () => void;
+  onOpenSettings: () => void;
   onUpdateSettings: (settings: { autoReveal?: boolean; showAverage?: boolean; roomName?: string }) => void;
 }
 
@@ -37,12 +38,12 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleRole,
   onOpenHistory,
   onOpenParticipants,
+  onOpenSettings,
   onUpdateSettings,
 }) => {
   const [copied, setCopied] = useState(false);
   const [soundOn, setSoundOn] = useState(soundEffects.isEnabled());
   const [showDeckMenu, setShowDeckMenu] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [roomNameInput, setRoomNameInput] = useState(room.name);
 
@@ -315,7 +316,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Room Settings */}
           <button
-            onClick={() => setShowSettingsModal(true)}
+            onClick={onOpenSettings}
             className="min-h-[38px] min-w-[38px] flex items-center justify-center p-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 text-slate-400 hover:text-white cursor-pointer"
             title="Ustawienia pokoju"
           >
@@ -323,82 +324,6 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
       </div>
-
-      {/* Settings Modal */}
-      {showSettingsModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 shadow-2xl text-slate-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-              <h3 className="font-bold text-base text-white flex items-center gap-2">
-                <Settings className="w-4 h-4 text-indigo-400" />
-                Ustawienia sesji
-              </h3>
-              <button
-                onClick={() => setShowSettingsModal(false)}
-                className="text-slate-400 hover:text-white text-sm p-1 rounded-md"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="flex items-center justify-between p-3 bg-slate-950/60 rounded-xl border border-slate-800">
-                <div>
-                  <div className="font-semibold text-white">Automatyczne odkrywanie kart</div>
-                  <div className="text-slate-400 text-[11px]">
-                    Odkrywaj natychmiast, gdy wszyscy uprawnieni uczestnicy oddadzą głos.
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={room.autoReveal}
-                  onChange={(e) => onUpdateSettings({ autoReveal: e.target.checked })}
-                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700"
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-slate-950/60 rounded-xl border border-slate-800">
-                <div>
-                  <div className="font-semibold text-white">Pokazuj średnią arytmetyczną</div>
-                  <div className="text-slate-400 text-[11px]">
-                    Wyliczaj i wyświetlaj średnią arytmetyczną po odkryciu kart.
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={room.showAverage}
-                  onChange={(e) => onUpdateSettings({ showAverage: e.target.checked })}
-                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1">Skala estymacji</label>
-                <select
-                  value={room.deckType}
-                  onChange={(e) => onChangeDeck(e.target.value as DeckType)}
-                  className="w-full bg-slate-800 text-white rounded-xl px-3 py-2.5 border border-slate-700 focus:outline-none focus:border-indigo-500"
-                >
-                  {(Object.keys(DECK_LABELS) as DeckType[]).map((type) => (
-                    <option key={type} value={type}>
-                      {DECK_LABELS[type]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setShowSettingsModal(false)}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-4 py-2 rounded-xl"
-              >
-                Gotowe
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </header>
   );
 };
