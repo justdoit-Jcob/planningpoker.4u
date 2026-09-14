@@ -274,6 +274,39 @@ export default function App() {
     connectWebSocket(data.roomId);
   };
 
+  /**
+   * Wyjście z pokoju z powrotem do lobby.
+   *
+   * To rozłączenie na życzenie, więc musi zdjąć flagę isJoined w refie ZANIM
+   * zamknie gniazdo — inaczej onclose potraktowałby je jak awarię sieci
+   * i zacząłby wznawiać połączenie w tle.
+   *
+   * Tożsamość w sessionStorage zostaje nietknięta: powrót do tego samego
+   * pokoju wznowi dotychczasowy wpis uczestnika zamiast tworzyć nowy.
+   */
+  const handleGoHome = useCallback(() => {
+    isJoinedRef.current = false;
+    attemptRef.current = 0;
+    clearReconnectTimer();
+
+    if (socketRef.current) {
+      socketRef.current.onclose = null;
+      socketRef.current.close();
+      socketRef.current = null;
+    }
+
+    reactionTimersRef.current.forEach((t) => clearTimeout(t));
+    reactionTimersRef.current.clear();
+
+    setIsJoined(false);
+    setRoom(null);
+    setIsConnected(false);
+    setReactions([]);
+
+    // Adres wraca do postaci bez pokoju, żeby odświeżenie nie wrzuciło z powrotem.
+    window.history.pushState({ path: window.location.pathname }, '', window.location.pathname);
+  }, [clearReconnectTimer]);
+
   // Voting Actions
   const handleVote = (card: string) => {
     sendMessage({ type: 'VOTE', card });
@@ -342,6 +375,7 @@ export default function App() {
           <Header
             room={room}
             selfId={selfId}
+            onGoHome={handleGoHome}
             onSendReaction={handleSendReaction}
             onUpdateTimer={handleUpdateTimer}
             onChangeDeck={handleChangeDeck}

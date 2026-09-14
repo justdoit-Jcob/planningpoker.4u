@@ -20,6 +20,8 @@ import { useDismissOnOutside, useEscapeKey } from '../hooks/useDismissOnOutside'
 interface HeaderProps {
   room: RoomState;
   selfId: string;
+  /** Wyjście z pokoju z powrotem do lobby. */
+  onGoHome: () => void;
   onSendReaction: (emoji: string) => void;
   onUpdateTimer: (action: 'start' | 'pause' | 'reset' | 'set', duration?: number) => void;
   onChangeDeck: (deckType: DeckType) => void;
@@ -33,6 +35,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   room,
   selfId,
+  onGoHome,
   onSendReaction,
   onUpdateTimer,
   onChangeDeck,
@@ -106,9 +109,15 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Top / Left: Branding & Room Info & Share */}
         <div className="w-full md:w-auto flex items-center justify-between md:justify-start gap-2 sm:gap-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center font-bold text-white shadow-md text-sm shrink-0">
+            <button
+              type="button"
+              onClick={onGoHome}
+              aria-label="Wyjdź z pokoju i wróć do strony głównej"
+              title="Wróć do strony głównej"
+              className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center font-bold text-white shadow-md text-sm shrink-0 cursor-pointer transition hover:brightness-110 active:scale-95"
+            >
               ♠
-            </div>
+            </button>
             <div>
               {editingName ? (
                 <div className="flex items-center gap-1.5" ref={nameEditRef}>
