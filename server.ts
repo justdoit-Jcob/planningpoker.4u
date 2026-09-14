@@ -387,6 +387,14 @@ wss.on('connection', (ws: WebSocket) => {
         return;
       }
 
+      // Keep-alive na poziomie aplikacji: odpowiadamy od razu i nie wymagamy
+      // przynależności do pokoju. Utrzymuje ruch na tunelu, żeby proxy
+      // z limitem bezczynności nie zamknęło cichego połączenia.
+      if (msg.type === 'PING') {
+        ws.send(JSON.stringify({ type: 'PONG', timestamp: Date.now() }));
+        return;
+      }
+
       if (msg.type === 'JOIN_ROOM') {
         handleJoinRoom(ws, ctx, msg);
         return;

@@ -28,8 +28,18 @@ const RECONNECT_MAX_MS = 30000;
 const REACTION_TTL_MS = 3000;
 
 /**
- * Tożsamość nadaje serwer (P0-4). Trzymamy ją per pokój, żeby wznowienie
- * połączenia trafiło we właściwy wpis uczestnika, a nie tworzyło nowego.
+ * Keep-alive na poziomie aplikacji.
+ *
+ * Serwer ma własny heartbeat protokołowy (ping/pong biblioteki ws), który
+ * wykrywa i usuwa martwe połączenia. Ten interwał rozwiązuje inny problem:
+ * ruch wychodzący od klienta resetuje liczniki bezczynności na proxy
+ * (Cloud Run, Nginx), które potrafią zamknąć cichy tunel WebSocket.
+ */
+const KEEPALIVE_INTERVAL_MS = 15000;
+
+/**
+ * Tożsamość nadaje serwer. Trzymamy ją per pokój, żeby wznowienie połączenia
+ * trafiło we właściwy wpis uczestnika, a nie tworzyło nowego.
  */
 function identityStorageKey(roomId: string): string {
   return `poker_identity_${roomId}`;
@@ -58,7 +68,7 @@ function saveIdentity(roomId: string, identity: Identity): void {
 }
 
 export default function App() {
-  // Identyfikator pochodzi teraz z serwera, nie z losowania po stronie klienta.
+  // Identyfikator pochodzi z serwera, nie z losowania po stronie klienta.
   const [selfId, setSelfId] = useState<string>('');
 
   const [roomId, setRoomId] = useState<string>(() => {
@@ -78,6 +88,7 @@ export default function App() {
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
+  const keepAliveIntervalRef = useRef<number | null>(null);
   const reactionTimersRef = useRef<Set<number>>(new Set());
 
   /**
@@ -85,9 +96,10 @@ export default function App() {
    *
    * Poprzednio ws.onclose domykał się nad wartością isJoined z chwili tworzenia
    * callbacku — zawsze false, bo połączenie powstawało w tym samym cyklu co
-   * setIsJoined(true). Automatyczne wznawianie nigdy się nie uruchamiało (P1-1).
+   * setIsJoined(true). Automatyczne wznawianie nigdy się nie uruchamiało.
    */
   const isJoinedRef = useRef(false);
+  const roomIdRef = useRef(roomId);
   const attemptRef = useRef(0);
   const identityRef = useRef<Identity | null>(null);
   const connectRef = useRef<(targetRoomId: string) => void>(() => {});
@@ -118,10 +130,18 @@ export default function App() {
     }
   }, []);
 
+  const clearKeepAlive = useCallback(() => {
+    if (keepAliveIntervalRef.current !== null) {
+      clearInterval(keepAliveIntervalRef.current);
+      keepAliveIntervalRef.current = null;
+    }
+  }, []);
+
   // Connect to WebSocket Server
   const connectWebSocket = useCallback(
     (targetRoomId: string) => {
       clearReconnectTimer();
+      clearKeepAlive();
 
       if (socketRef.current) {
         // Stare połączenie nie może wywołać ponownego łączenia.
@@ -139,6 +159,13 @@ export default function App() {
       ws.onopen = () => {
         setIsConnected(true);
         attemptRef.current = 0;
+
+        // Keep-alive przeciwko limitom bezczynności na proxy.
+        keepAliveIntervalRef.current = window.setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'PING' }));
+          }
+        }, KEEPALIVE_INTERVAL_MS);
 
         const profile = userProfileRef.current;
         const identity = identityRef.current ?? loadIdentity(targetRoomId);
@@ -164,6 +191,10 @@ export default function App() {
           const data = JSON.parse(event.data);
 
           switch (data.type) {
+            case 'PONG':
+              // Potwierdzenie keep-alive — nie niesie stanu.
+              break;
+
             case 'IDENTITY': {
               const identity: Identity = { userId: data.userId, token: data.token };
               identityRef.current = identity;
@@ -208,13 +239,14 @@ export default function App() {
 
       ws.onclose = () => {
         setIsConnected(false);
+        clearKeepAlive();
         if (!isJoinedRef.current) return;
 
         // Wykładniczy backoff zamiast stałych 2 sekund w nieskończoność.
         const attempt = attemptRef.current++;
         const delay = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** attempt);
         reconnectTimeoutRef.current = window.setTimeout(() => {
-          connectRef.current(targetRoomId);
+          connectRef.current(roomIdRef.current || targetRoomId);
         }, delay);
       };
 
@@ -222,12 +254,42 @@ export default function App() {
         console.error('WebSocket connection error:', err);
       };
     },
-    [clearReconnectTimer]
+    [clearReconnectTimer, clearKeepAlive]
   );
 
   // Najświeższa wersja funkcji dla ponowień wywoływanych z onclose.
   useEffect(() => {
     connectRef.current = connectWebSocket;
+  }, [connectWebSocket]);
+
+  /**
+   * Powrót do karty lub odzyskanie sieci łączy natychmiast, bez czekania na
+   * kolejny krok backoffu. Uśpiona karta potrafi wstrzymać timery, więc bez
+   * tego użytkownik wracałby do martwego połączenia.
+   */
+  useEffect(() => {
+    const reconnectIfDropped = () => {
+      if (!isJoinedRef.current) return;
+      if (document.visibilityState !== 'visible' && navigator.onLine === false) return;
+
+      const socket = socketRef.current;
+      const isDown =
+        !socket ||
+        socket.readyState === WebSocket.CLOSED ||
+        socket.readyState === WebSocket.CLOSING;
+
+      if (isDown && roomIdRef.current) {
+        attemptRef.current = 0;
+        connectWebSocket(roomIdRef.current);
+      }
+    };
+
+    document.addEventListener('visibilitychange', reconnectIfDropped);
+    window.addEventListener('online', reconnectIfDropped);
+    return () => {
+      document.removeEventListener('visibilitychange', reconnectIfDropped);
+      window.removeEventListener('online', reconnectIfDropped);
+    };
   }, [connectWebSocket]);
 
   // Cleanup on unmount
@@ -240,6 +302,7 @@ export default function App() {
         socketRef.current.close();
       }
       if (reconnectTimeoutRef.current !== null) clearTimeout(reconnectTimeoutRef.current);
+      if (keepAliveIntervalRef.current !== null) clearInterval(keepAliveIntervalRef.current);
       reactionTimers.forEach((t) => clearTimeout(t));
       reactionTimers.clear();
     };
@@ -263,8 +326,9 @@ export default function App() {
 
     setRoomId(data.roomId);
     setIsJoined(true);
-    // Ref ustawiamy synchronicznie — onclose czyta go, zanim React przerysuje.
+    // Refy ustawiamy synchronicznie — onclose czyta je, zanim React przerysuje.
     isJoinedRef.current = true;
+    roomIdRef.current = data.roomId;
     attemptRef.current = 0;
 
     // Update URL query string without reloading
@@ -288,6 +352,7 @@ export default function App() {
     isJoinedRef.current = false;
     attemptRef.current = 0;
     clearReconnectTimer();
+    clearKeepAlive();
 
     if (socketRef.current) {
       socketRef.current.onclose = null;
@@ -305,7 +370,7 @@ export default function App() {
 
     // Adres wraca do postaci bez pokoju, żeby odświeżenie nie wrzuciło z powrotem.
     window.history.pushState({ path: window.location.pathname }, '', window.location.pathname);
-  }, [clearReconnectTimer]);
+  }, [clearReconnectTimer, clearKeepAlive]);
 
   // Voting Actions
   const handleVote = (card: string) => {
@@ -341,7 +406,7 @@ export default function App() {
   };
 
   const handleToggleRole = (newRole: ParticipantRole) => {
-    // Serwer przyjmuje wyłącznie role samodzielne; 'moderator' nadaje sam (P0-2).
+    // Serwer przyjmuje wyłącznie role samodzielne; 'moderator' nadaje sam.
     sendMessage({ type: 'UPDATE_ROLE', role: newRole === 'observer' ? 'observer' : 'voter' });
   };
 

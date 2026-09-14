@@ -51,6 +51,16 @@ export type TimerAction = 'start' | 'pause' | 'reset' | 'set';
 export const TIMER_ACTIONS: TimerAction[] = ['start', 'pause', 'reset', 'set'];
 
 export type ClientMessage =
+  /**
+   * Keep-alive na poziomie aplikacji.
+   *
+   * Uzupełnia protokołowy heartbeat serwera (ping/pong z biblioteki ws), ale
+   * rozwiązuje inny problem: ruch wychodzący od klienta resetuje liczniki
+   * bezczynności na proxy (Cloud Run, Nginx), które potrafią zamknąć cichy
+   * tunel WebSocket, zanim serwer zdąży zauważyć cokolwiek niepokojącego.
+   * Nie wymaga dołączenia do pokoju.
+   */
+  | { type: 'PING' }
   | {
       type: 'JOIN_ROOM';
       roomId: string;
@@ -155,6 +165,9 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
   if (!msg || typeof msg.type !== 'string') return null;
 
   switch (msg.type) {
+    case 'PING':
+      return { type: 'PING' };
+
     case 'JOIN_ROOM': {
       const roomId = nonEmptyStr(msg.roomId, LIMITS.roomId);
       if (!roomId) return null;

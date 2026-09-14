@@ -15,7 +15,8 @@ Zbudowana z użyciem **React 19**, **TypeScript**, **Tailwind CSS v4**, **Node.j
   - Własną kartę widzisz zawsze; pozostałe pojawiają się dopiero po odkryciu.
 - ⚡ **Wymiana danych w czasie rzeczywistym (Real-time WebSockets)**:
   - Błyskawiczna synchronizacja głosów, odkrywania kart i statusów uczestników bez przeładowywania strony.
-  - Automatyczne wznawianie połączenia z narastającym opóźnieniem (1 s → 30 s) oraz heartbeat ping/pong co 30 s, który usuwa martwe połączenia zamiast zostawiać duchy przy stole.
+  - Automatyczne wznawianie połączenia z narastającym opóźnieniem (1 s → 30 s), a przy powrocie do karty lub odzyskaniu sieci — natychmiast.
+  - Dwie uzupełniające się warstwy keep-alive: **`PING` z klienta co 15 s**, żeby proxy z limitem bezczynności (Cloud Run, Nginx) nie zamknęło cichego tunelu, oraz **protokołowy ping/pong serwera co 30 s**, który wykrywa faktycznie martwe połączenia i je usuwa, zamiast zostawiać duchy przy stole.
 - 🗂️ **Wybór skali estymacji (Decks)**:
   - **Fibonacci**: `0, 1, 2, 3, 5, 8, 13, 21, ?, ☕`
   - **Scrum Standard**: `0, ½, 1, 2, 3, 5, 8, 13, 20, 40, 100, ?, ☕`

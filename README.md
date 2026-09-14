@@ -23,7 +23,8 @@ A modern, fast, and responsive real-time Planning Poker (Scrum Poker) web applic
   - You always see your own card; everyone else's arrives after the reveal.
 - ⚡ **Real-Time WebSocket Synchronization**:
   - Instant synchronization of votes, reveals, participants, and session state with zero page reloads.
-  - Automatic reconnection with exponential backoff, plus a server-side ping/pong heartbeat that clears out dead connections instead of leaving ghosts at the table.
+  - Automatic reconnection with exponential backoff, plus an immediate retry when the tab regains focus or the network comes back.
+  - Two complementary keep-alive layers: a **client `PING` every 15s** so proxies with idle timeouts (Cloud Run, Nginx) don't drop a quiet tunnel, and a **server-side protocol ping/pong every 30s** that detects genuinely dead peers and reaps them instead of leaving ghosts at the table.
 - 🗂️ **Versatile Estimation Decks**:
   - **Fibonacci**: `0, 1, 2, 3, 5, 8, 13, 21, ?, ☕`
   - **Scrum Standard (Modified Fibonacci)**: `0, ½, 1, 2, 3, 5, 8, 13, 20, 40, 100, ?, ☕`
