@@ -104,13 +104,19 @@ export const Header: React.FC<HeaderProps> = ({
   ).length;
 
   return (
-    <header className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40 px-3 sm:px-4 py-2 sm:py-2.5 text-slate-100">
+    <header className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40 px-2 sm:px-4 py-2 sm:py-2.5 text-slate-100">
       {/*
-        Pełna szerokość, bez max-w-7xl mx-auto: ten kontener centrował się na
-        szerokich ekranach i zostawiał marginesy, przez co grupy wyrównywały się
-        do krawędzi wewnętrznego bloku zamiast do krawędzi ramki nagłówka.
+        Geometria dopasowana do ramki stołu pokerowego, żeby lewa i prawa grupa
+        kończyły się dokładnie na jego krawędziach.
+
+        Stół: <main p-2 sm:p-4> → PokerTable `w-full max-w-5xl mx-auto p-2 sm:p-4`
+        → ramka z border-4. Sumaryczny odstęp od krawędzi ekranu to 16 px na
+        mobile i 32 px od sm w górę.
+
+        Tu odtworzone tym samym max-w-5xl oraz px-2 sm:px-4, które razem
+        z px-2 sm:px-4 na <header> dają identyczne 16/32 px.
       */}
-      <div className="w-full flex flex-col gap-2.5 sm:gap-3">
+      <div className="max-w-5xl mx-auto w-full px-2 sm:px-4 flex flex-col gap-2.5 sm:gap-3">
         {/* Wiersz 1: identyfikacja pokoju przy lewej krawedzi, sterowanie przy prawej */}
         <div className="w-full flex items-center justify-between gap-2 sm:gap-3">
           {/* Top / Left: Branding & Room Info & Share */}
