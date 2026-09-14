@@ -18,9 +18,12 @@ A modern, fast, and responsive real-time Planning Poker (Scrum Poker) web applic
 
 ## ✨ Features
 
+- 🔒 **Genuinely Blind Estimation**:
+  - Votes are redacted **on the server**. Until cards are revealed, every client receives only a `hasVoted` flag for other participants — never the card value. Opening DevTools does not reveal anyone's estimate.
+  - You always see your own card; everyone else's arrives after the reveal.
 - ⚡ **Real-Time WebSocket Synchronization**:
-  - Instant synchronization of card votes, reveals, participants, and session state across all connected clients with zero page reloads.
-  - Live participant presence indicators showing who is online and who has submitted their vote.
+  - Instant synchronization of votes, reveals, participants, and session state with zero page reloads.
+  - Automatic reconnection with exponential backoff, plus a server-side ping/pong heartbeat that clears out dead connections instead of leaving ghosts at the table.
 - 🗂️ **Versatile Estimation Decks**:
   - **Fibonacci**: `0, 1, 2, 3, 5, 8, 13, 21, ?, ☕`
   - **Scrum Standard (Modified Fibonacci)**: `0, ½, 1, 2, 3, 5, 8, 13, 20, 40, 100, ?, ☕`
@@ -29,22 +32,67 @@ A modern, fast, and responsive real-time Planning Poker (Scrum Poker) web applic
   - **Sequential**: `1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ?, ☕`
 - 🃏 **Interactive Poker Table**:
   - Card backings stay concealed during active voting.
-  - Smooth synchronous card reveal animation with Web Audio API sound effects and automatic confetti celebration upon 100% team consensus.
-  - Instant automated round metrics: **Arithmetic Average**, **Median**, **Consensus Rate (%)**, and complete **Vote Distribution**.
+  - Synchronized reveal with Web Audio API sound effects, confetti on full team consensus, and a **coffee confetti** shower when the majority votes ☕ — the team is asking for a break, not an estimate.
+  - Instant round metrics: **Arithmetic Average**, **Median**, **Consensus Rate (%)**, **Vote Distribution**, and a separate **abstention** count.
+- 🙋 **Abstentions Kept Out of the Maths**:
+  - `?` and `☕` are not estimates. They never enter the average, median, mode, or consensus rate — a room where everyone picks `?` correctly reports 0% consensus, not 100%.
 - 👥 **Team Roles & Permissions**:
-  - **Voter**: Engineers and team members who participate in estimating stories.
-  - **Observer**: Scrum Masters, Product Owners, or stakeholders (spectates without voting or blocking auto-reveal triggers).
+  - **Voter** — engineers taking part in the estimate. Auto-reveal waits for them.
+  - **Observer** — Scrum Masters, Product Owners, guests. Does not vote and never blocks a reveal.
+  - **Moderator** — the room creator, assigned automatically. May estimate but is never required to, so the moderator never blocks auto-reveal. See [Roles & Trust Model](#-roles--trust-model).
 - ⏱️ **Synchronized Meeting Timer**:
-  - Built-in countdown timer with quick presets (1m, 1.5m, 2m) and audio notification on completion to keep discussions focused and timeboxed.
+  - Shared countdown with quick presets (1m, 1.5m, 2m) and an audio notification on completion. Open to everyone, not just the moderator.
 - 🔁 **Agile Round Lifecycle & History**:
-  - Optional topic/issue key input bar.
-  - Single-click **Reset / Next Round** action to clear votes and start the next estimation immediately.
-  - Round summary history log modal with past consensus scores and vote analytics.
+  - Optional topic / issue key bar.
+  - **Reset** clears the table without inflating the round number; **Save Score & Next** archives the round and advances it.
+  - Starting a new round also clears out profiles of people who have left the session, so the table does not accumulate greyed-out ghosts.
+  - Round history log with past consensus scores and vote analytics (capped at the 100 most recent rounds).
 - 💬 **Live Emoji Reactions**:
-  - Lightweight animated floating emoji particles (👍, 🚀, 🤔, ☕, 🔥) sent across team screens in real time.
+  - Floating emoji particles (👍, 🚀, 🤔, ☕, 🔥) broadcast to the whole team, rate-limited to keep the overlay usable.
 - 📱 **Mobile & Desktop First**:
   - Polished high-contrast dark theme (Slate & Indigo).
-  - Touch-optimized card selection carousel with 44px+ hit targets on mobile, and spacious table layout on widescreen monitors.
+  - Touch-optimized card carousel with 44px+ hit targets, and a spacious table layout on widescreen monitors.
+
+---
+
+## 🛡️ Roles & Trust Model
+
+The server — not the browser — is the source of truth. Every rule below is enforced server-side; the UI merely reflects it.
+
+### Who may do what
+
+| Action | Voter | Observer | Moderator |
+| --- | :---: | :---: | :---: |
+| Cast a vote | ✅ | — | ✅ *(optional)* |
+| Set the round topic | ✅ | ✅ | ✅ |
+| Send reactions | ✅ | ✅ | ✅ |
+| Start / pause / set the timer | ✅ | ✅ | ✅ |
+| Reset the round | ✅ | ✅ | ✅ |
+| **Reveal cards** | — | — | ✅ |
+| **Save score & advance the round** | — | — | ✅ |
+| **Clear history** | — | — | ✅ |
+| **Change the estimation deck** | — | — | ✅ |
+| **Change room settings / rename** | — | — | ✅ |
+
+The timer and round reset are deliberately left open to everyone — in a small team, gating them creates more friction than it prevents.
+
+### How the moderator is chosen
+
+1. The first person to enter a room becomes its **creator** and moderator.
+2. If the moderator disconnects, the role passes to the next participant **in join order**.
+3. When the creator comes back, the role returns to them and the stand-in reverts to their previous role.
+
+A participant can only ever assign themselves `voter` or `observer`; `moderator` is granted by the server alone.
+
+### Identity
+
+On joining, the server issues a UUID plus an **HMAC-signed token** scoped to `roomId:userId`, which the client stores in `sessionStorage`. Reconnecting replays that token to resume the same participant entry. A forged or missing token simply results in a fresh identity — it can never take over someone else's seat.
+
+> Set `SESSION_SECRET` in production. Without it a random secret is generated at boot, so a restart invalidates every resume token.
+
+### Input handling
+
+All WebSocket messages pass through a single runtime-validated schema (`src/protocol.ts`): unknown message types are dropped, votes must belong to the room's current deck, strings are length-capped, frames are limited to 64 KB, and reactions are throttled.
 
 ---
 
@@ -64,39 +112,57 @@ A modern, fast, and responsive real-time Planning Poker (Scrum Poker) web applic
   - [Vite](https://vite.dev/) (development server & fast HMR asset bundling)
   - [esbuild](https://esbuild.github.io/) (single-bundle CommonJS production server output)
 
+Room state lives in the server process memory. A restart clears all rooms and history, and the current design assumes a single instance.
+
 ---
 
 ## 🚀 Getting Started Locally
 
 ### Prerequisites
 - **Node.js**: version `>= 18.0.0` (Node.js 20+ recommended)
-- **npm**, **yarn**, or **pnpm**
+- **bun** (the repository ships a `bun.lock`), or **npm** / **yarn** / **pnpm**
 
 ### Installation
 ```bash
 # Clone repository
-git clone https://github.com/YOUR_USERNAME/planning-poker.git
-cd planning-poker
+git clone https://github.com/justdoit-Jcob/planningpoker.4u.git
+cd planningpoker.4u
 
 # Install dependencies
-npm install
+bun install     # or: npm install
 ```
 
-### Development Mode
-Runs the backend server with Vite middleware on port `3000`:
-```bash
-npm run dev
-```
+### Scripts
+
+| Script | What it does |
+| --- | --- |
+| `bun run dev` | Backend server with Vite middleware on port `3000` |
+| `bun run build` | Compiles the frontend and bundles the backend into `/dist` |
+| `bun run start` | Runs the production build (`NODE_ENV=production`) |
+| `bun run test` | Unit tests for the statistics engine |
+| `bun run lint` | `tsc --noEmit` type check |
+
 Open your browser at [http://localhost:3000](http://localhost:3000).
 
-### Production Build & Run
-```bash
-# Compile frontend and bundle backend into /dist
-npm run build
+### Environment variables
 
-# Start the production server
-npm start
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `PORT` | `3000` | Listening port. Injected automatically by most PaaS hosts (e.g. Cloud Run). |
+| `NODE_ENV` | `development` | `production` serves the prebuilt `/dist` instead of starting Vite. Set by `bun run start`. |
+| `SESSION_SECRET` | random per boot | Signs participant identity tokens. Set it in production so restarts don't drop everyone's session. |
+
+> `.env.example` also lists `GEMINI_API_KEY` and `APP_URL`. Neither is currently read by the application — they are left over from the original AI Studio scaffold.
+
+---
+
+## 🧪 Testing
+
+```bash
+bun run test
 ```
+
+Runs the `node:test` suite through `tsx`. Coverage focuses on `src/utils/stats.ts`, the pure function behind every round summary: odd and even medians, non-numeric decks, abstention handling, the coffee-majority threshold, and the rules for which participants count toward a round.
 
 ---
 
@@ -106,22 +172,27 @@ npm start
 ├── src/
 │   ├── components/            # Reusable UI components
 │   │   ├── CardDeck.tsx       # Bottom interactive card voting carousel
-│   │   ├── Header.tsx         # Top bar (timer, deck selector, reactions, settings)
+│   │   ├── Header.tsx         # Top bar (home, timer, deck selector, reactions, settings)
 │   │   ├── HistoryModal.tsx   # Modal showing completed rounds history
 │   │   ├── LobbyModal.tsx     # Welcome screen, name/avatar/role/room selection
 │   │   ├── ParticipantsModal.tsx # Team roster and voting status modal
 │   │   ├── PokerTable.tsx     # Oval table with participant cards and stats
 │   │   ├── ReactionsOverlay.tsx  # Floating animated live emoji reactions
 │   │   └── TopicBar.tsx       # Current story / round topic bar
+│   ├── hooks/
+│   │   └── useDismissOnOutside.ts # Close menus & inline editors on outside click / Escape
 │   ├── utils/
 │   │   ├── audio.ts           # Web Audio API sound synthesis
+│   │   ├── celebrate.ts       # Consensus and coffee-break confetti
 │   │   ├── polyfill.ts        # Browser environment compatibility polyfills
-│   │   └── stats.ts           # Median, average, and consensus calculations
-│   ├── types.ts               # Shared TypeScript schemas & types
+│   │   ├── stats.ts           # Median, average, consensus and abstention calculations
+│   │   └── stats.test.ts      # Unit tests for the statistics engine
+│   ├── protocol.ts            # WebSocket message schema, runtime validation, limits
+│   ├── types.ts               # Shared TypeScript schemas, decks & role helpers
 │   ├── App.tsx                # Main application orchestrator & WebSocket client
 │   ├── main.tsx               # Application entry point
 │   └── index.css              # Global styling with Tailwind CSS v4
-├── server.ts                  # Express server & WebSocket room state manager
+├── server.ts                  # Express server, room state, identity & authorization
 ├── vite.config.ts             # Vite configuration
 ├── package.json               # Scripts and dependencies
 ├── README.md                  # Project documentation (English & Polish)
@@ -133,16 +204,19 @@ npm start
 ## 💡 How It Works
 
 1. **Join or Create a Room**:
-   - Enter your name, select a role (**Voter** or **Observer**), choose an avatar color, and pick a Room Code (e.g. `SPRINT-42`).
-   - Share the URL with colleagues (`?room=SPRINT-42`) to let them join the exact same table instantly.
+   - Enter your name, pick a role (**Voter** or **Observer**), choose an avatar color, and set a room code (e.g. `SPRINT-42`).
+   - Share the URL (`?room=SPRINT-42`) so colleagues land at the same table. The first person in becomes the moderator.
 2. **Vote on Stories**:
-   - Anyone can update the current discussion topic or story title.
-   - Team members click a card from the bottom deck. Cards stay face-down on the table until all votes are cast.
+   - Anyone can set the current topic or story title.
+   - Pick a card from the bottom deck. Other people see only that you are ready — never which card you chose.
 3. **Reveal**:
-   - Click **Reveal Cards** (or let Auto-Reveal trigger when all voters finish) to turn over cards.
-   - The team immediately sees the arithmetic mean, median, team agreement percentage, and consensus confetti when 100% agreement is met.
+   - The moderator clicks **Reveal Cards**, or auto-reveal fires once every voter has chosen.
+   - The team sees the average, median, agreement percentage and distribution, with confetti on full consensus — or coffee confetti if the room mostly voted ☕.
 4. **Next Round**:
-   - Click **Save Score & Next** or **Reset** to clear cards, archive the round into History, and continue seamlessly.
+   - **Save Score & Next** archives the round to History and advances the counter; **Reset** just clears the table.
+   - Either way, participants who have left the session are dropped from the table.
+5. **Leave**:
+   - Click the ♠ logo in the header to leave the room and return to the lobby. Your identity is kept, so rejoining the same room restores your seat.
 
 ---
 
@@ -164,13 +238,18 @@ Nowoczesna, lekka i responsywna aplikacja internetowa do zwinnego szacowania (Pl
 
 Zbudowana z użyciem **React 19**, **TypeScript**, **Tailwind CSS v4**, **Node.js/Express** oraz synchronicznych kanałów komunikacyjnych **WebSocket (ws)**.
 
+Pełna dokumentacja po polsku znajduje się w pliku [README.pl.md](./README.pl.md).
+
 ---
 
 ## ✨ Główne Funkcjonalności
 
+- 🔒 **Estymacja naprawdę ślepa**:
+  - Głosy są redagowane **po stronie serwera**. Do momentu odkrycia kart każdy klient dostaje o innych uczestnikach wyłącznie informację `hasVoted` — nigdy wartości karty. Otwarcie DevTools nie ujawnia cudzych estymat.
+  - Własną kartę widzisz zawsze; pozostałe pojawiają się dopiero po odkryciu.
 - ⚡ **Wymiana danych w czasie rzeczywistym (Real-time WebSockets)**:
   - Błyskawiczna synchronizacja głosów, odkrywania kart i statusów uczestników bez przeładowywania strony.
-  - Wskaźniki obecności uczestników online oraz informacja o tym, kto już oddał głos.
+  - Automatyczne wznawianie połączenia z narastającym opóźnieniem oraz heartbeat ping/pong po stronie serwera, który usuwa martwe połączenia zamiast zostawiać duchy przy stole.
 - 🗂️ **Wybór skali estymacji (Decks)**:
   - **Fibonacci**: `0, 1, 2, 3, 5, 8, 13, 21, ?, ☕`
   - **Scrum Standard**: `0, ½, 1, 2, 3, 5, 8, 13, 20, 40, 100, ?, ☕`
@@ -179,22 +258,18 @@ Zbudowana z użyciem **React 19**, **TypeScript**, **Tailwind CSS v4**, **Node.j
   - **Sekwencyjna (Sequential)**: `1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ?, ☕`
 - 🃏 **Interaktywny stół pokerowy**:
   - Ukryte rewersy kart w trakcie trwania rundy.
-  - Płynna animacja synchronicznego odkrycia kart (**Reveal**) z efektami dźwiękowymi Web Audio API i konfetti przy jednomyślności zespołu (**Consensus!**).
-  - Automatyczne wyliczanie statystyk rundy: **średnia arytmetyczna**, **mediana**, **stopień zgodności zespołu (%)** oraz **rozkład głosów**.
+  - Synchroniczne odkrycie kart z efektami Web Audio API, konfetti przy pełnej zgodzie zespołu oraz **konfetti z kawą**, gdy większość wybierze ☕ — zespół prosi wtedy o przerwę, nie o estymatę.
+  - Statystyki rundy: **średnia**, **mediana**, **stopień zgodności (%)**, **rozkład głosów** i osobno liczone **wstrzymania**.
+- 🙋 **Wstrzymania poza matematyką**:
+  - `?` i `☕` nie są estymatą — nie wchodzą do średniej, mediany, mody ani konsensusu. Pokój, w którym wszyscy wybrali `?`, pokazuje 0% zgody, a nie 100%.
 - 👥 **Role w zespole**:
-  - **Głosujący (Voter)**: Deweloperzy, inżynierowie biorący bezpośredni udział w wycenie.
-  - **Obserwator (Observer)**: Scrum Master, Product Owner, goście (brak konieczności oddawania głosu, brak blokowania auto-reveal).
-- ⏱️ **Wbudowany timer dyskusji**:
-  - Konfigurowalny stoper (np. 30s, 1m, 1.5m, 2m, 3m, 5m) z synchronizowanym odliczaniem dla wszystkich uczestników i sygnałem dźwiękowym po upływie czasu.
-- 🔁 **Prosty cykl rundowy & Historia**:
-  - Pole tematu zadania / User Story.
-  - Przycisk **Reset / Nowa runda** umożliwiający natychmiastowe przejście do kolejnej estymacji.
-  - Zapis historii zakończonych rund z możliwością podejrzenia uzyskanych wyników i statystyk w oknie modalnym.
-- 💬 **Reakcje na żywo**:
-  - Pływające reakcje emoji (👍, ❤️, 🚀, 🤔, ☕, 🎉) widoczne natychmiast dla całego zespołu.
-- 📱 **Mobile & Desktop First**:
-  - Dopracowany interfejs w ciemnej tonacji (Dark Slate/Indigo).
-  - Skrajnie dopasowany do ekranów dotykowych telefonów, tabletów oraz szerokich monitorów.
+  - **Głosujący (Voter)** — bierze udział w wycenie; automatyczne odkrycie czeka na niego.
+  - **Obserwator (Observer)** — Scrum Master, Product Owner, goście. Nie głosuje i nigdy nie blokuje odkrycia.
+  - **Moderator** — twórca pokoju, wyznaczany automatycznie. Może estymować, ale nie musi, więc nigdy nie blokuje odkrycia.
+- ⏱️ **Wbudowany timer dyskusji**: wspólne odliczanie z presetami (1m, 1.5m, 2m) i sygnałem dźwiękowym. Dostępny dla wszystkich, nie tylko moderatora.
+- 🔁 **Cykl rundowy i historia**: **Resetuj** czyści stół bez zmiany numeru rundy, **Zapisz wynik i dalej** archiwizuje ją i przechodzi dalej. Start nowej rundy usuwa też profile osób, które opuściły sesję.
+- 💬 **Reakcje na żywo**: pływające emoji (👍, 🚀, 🤔, ☕, 🔥) z ograniczeniem częstotliwości.
+- 📱 **Mobile & Desktop First**: dopracowany interfejs w ciemnej tonacji (Dark Slate/Indigo), dopasowany do ekranów dotykowych i szerokich monitorów.
 
 ---
 
@@ -209,15 +284,21 @@ Zbudowana z użyciem **React 19**, **TypeScript**, **Tailwind CSS v4**, **Node.j
 
 ```bash
 # Instalacja zależności
-npm install
+bun install        # lub: npm install
 
 # Tryb deweloperski (http://localhost:3000)
-npm run dev
+bun run dev
+
+# Testy jednostkowe i kontrola typów
+bun run test
+bun run lint
 
 # Budowanie i start produkcyjny
-npm run build
-npm start
+bun run build
+bun run start
 ```
+
+Szczegóły ról, uprawnień, modelu zaufania i zmiennych środowiskowych: [README.pl.md](./README.pl.md).
 
 ---
 
