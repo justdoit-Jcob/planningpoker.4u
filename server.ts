@@ -124,6 +124,11 @@ wss.on('connection', (ws: WebSocket) => {
       if (!ctx) return;
 
       switch (msg.type) {
+        case 'PING': {
+          ws.send(JSON.stringify({ type: 'PONG', timestamp: Date.now() }));
+          break;
+        }
+
         case 'JOIN_ROOM': {
           const { roomId, user } = msg;
           ctx.roomId = roomId;

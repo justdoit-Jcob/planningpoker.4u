@@ -32,6 +32,8 @@ export default function App() {
   });
 
   const [isJoined, setIsJoined] = useState(false);
+  const isJoinedRef = useRef(false);
+  const roomIdRef = useRef(roomId);
   const [room, setRoom] = useState<RoomState | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [reactions, setReactions] = useState<ReactionEvent[]>([]);
@@ -43,6 +45,7 @@ export default function App() {
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
+  const heartbeatIntervalRef = useRef<number | null>(null);
 
   // User details saved upon joining
   const userProfileRef = useRef<{
@@ -66,6 +69,14 @@ export default function App() {
   // Connect to WebSocket Server
   const connectWebSocket = useCallback(
     (targetRoomId: string) => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
+      }
       if (socketRef.current) {
         socketRef.current.close();
       }
@@ -79,6 +90,13 @@ export default function App() {
 
       ws.onopen = () => {
         setIsConnected(true);
+        // Start keep-alive heartbeat every 15s to prevent Cloud Run / Nginx idle timeout
+        heartbeatIntervalRef.current = window.setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'PING' }));
+          }
+        }, 15000);
+
         // Join room
         const profile = userProfileRef.current;
         ws.send(
@@ -101,6 +119,10 @@ export default function App() {
           const data = JSON.parse(event.data);
 
           switch (data.type) {
+            case 'PONG':
+              // Keep-alive acknowledgment
+              break;
+
             case 'ROOM_STATE':
             case 'STATE_UPDATE':
               setRoom(data.room);
@@ -129,11 +151,16 @@ export default function App() {
 
       ws.onclose = () => {
         setIsConnected(false);
-        // Reconnect after 2 seconds if joined
-        if (isJoined) {
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+          heartbeatIntervalRef.current = null;
+        }
+
+        // Reconnect after 2 seconds if user is in room
+        if (isJoinedRef.current) {
           reconnectTimeoutRef.current = window.setTimeout(() => {
-            if (targetRoomId) {
-              connectWebSocket(targetRoomId);
+            if (roomIdRef.current) {
+              connectWebSocket(roomIdRef.current);
             }
           }, 2000);
         }
@@ -143,16 +170,32 @@ export default function App() {
         console.error('WebSocket connection error:', err);
       };
     },
-    [selfId, isJoined]
+    [selfId]
   );
 
-  // Cleanup on unmount
+  // Cleanup on unmount & reconnect when tab becomes visible again
   useEffect(() => {
+    const handleVisibilityOrOnline = () => {
+      if (document.visibilityState === 'visible' && isJoinedRef.current) {
+        if (!socketRef.current || socketRef.current.readyState === WebSocket.CLOSED) {
+          if (roomIdRef.current) {
+            connectWebSocket(roomIdRef.current);
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityOrOnline);
+    window.addEventListener('online', handleVisibilityOrOnline);
+
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityOrOnline);
+      window.removeEventListener('online', handleVisibilityOrOnline);
+      if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
       if (socketRef.current) socketRef.current.close();
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
     };
-  }, []);
+  }, [connectWebSocket]);
 
   // Handle joining room from Lobby
   const handleJoinLobby = (data: {
@@ -168,6 +211,8 @@ export default function App() {
       avatarColor: data.avatarColor,
       roomName: data.roomName,
     };
+    roomIdRef.current = data.roomId;
+    isJoinedRef.current = true;
     setRoomId(data.roomId);
     setIsJoined(true);
 
