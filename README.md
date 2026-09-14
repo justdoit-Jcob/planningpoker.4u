@@ -22,7 +22,7 @@ A modern, fast, and responsive real-time Planning Poker (Scrum Poker) web applic
   - Instant synchronization of card votes, reveals, participants, and session state across all connected clients with zero page reloads.
   - Live participant presence indicators showing who is online and who has submitted their vote.
 - 🗂️ **Versatile Estimation Decks**:
-  - **Fibonacci**: `0, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, ?, ☕`
+  - **Fibonacci**: `0, 1, 2, 3, 5, 8, 13, 21, ?, ☕`
   - **Scrum Standard (Modified Fibonacci)**: `0, ½, 1, 2, 3, 5, 8, 13, 20, 40, 100, ?, ☕`
   - **T-Shirt**: `XS, S, M, L, XL, XXL, ?, ☕`
   - **Powers of 2**: `0, 1, 2, 4, 8, 16, 32, 64, ?, ☕`
@@ -172,7 +172,7 @@ Zbudowana z użyciem **React 19**, **TypeScript**, **Tailwind CSS v4**, **Node.j
   - Błyskawiczna synchronizacja głosów, odkrywania kart i statusów uczestników bez przeładowywania strony.
   - Wskaźniki obecności uczestników online oraz informacja o tym, kto już oddał głos.
 - 🗂️ **Wybór skali estymacji (Decks)**:
-  - **Fibonacci**: `0, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, ?, ☕`
+  - **Fibonacci**: `0, 1, 2, 3, 5, 8, 13, 21, ?, ☕`
   - **Scrum Standard**: `0, ½, 1, 2, 3, 5, 8, 13, 20, 40, 100, ?, ☕`
   - **T-Shirt**: `XS, S, M, L, XL, XXL, ?, ☕`
   - **Potęgi 2 (Powers of 2)**: `0, 1, 2, 4, 8, 16, 32, 64, ?, ☕`

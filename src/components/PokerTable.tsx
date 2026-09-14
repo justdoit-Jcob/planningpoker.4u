@@ -28,11 +28,12 @@ export const PokerTable: React.FC<PokerTableProps> = ({
   const observers = participants.filter((p) => p.role === 'observer');
   const isRevealed = room.votingState === 'revealed';
 
-  // Licznik postępu dotyczy wyłącznie wymaganych głosujących: moderator może
-  // estymować, ale nie musi, więc nigdy nie blokuje odkrycia kart.
-  const requiredVoters = participants.filter((p) => p.role === 'voter' && p.isConnected);
-  const votesCount = requiredVoters.filter((p) => p.hasVoted).length;
-  const totalEligibleVoters = requiredVoters.length;
+  // Licznik obejmuje wszystkich połączonych przy stole, razem z moderatorem.
+  // Moderator nadal nie blokuje automatycznego odkrycia — może estymować,
+  // ale nie musi — więc karty potrafią odsłonić się przy niepełnym liczniku.
+  const seatedVoters = participants.filter((p) => canCastVote(p) && p.isConnected);
+  const votesCount = seatedVoters.filter((p) => p.hasVoted).length;
+  const totalEligibleVoters = seatedVoters.length;
   const allVoted = totalEligibleVoters > 0 && votesCount === totalEligibleVoters;
 
   const currentStats: VoteStats = calculateVoteStats(room.participants);

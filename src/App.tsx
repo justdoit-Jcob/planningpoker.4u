@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
+  DECK_PRESETS,
   DeckType,
   ParticipantRole,
   ReactionEvent,
@@ -381,7 +382,7 @@ export default function App() {
 
             {/* Voting Deck Carousel */}
             <CardDeck
-              cards={room.customDeck && room.customDeck.length > 0 ? room.customDeck : ['0', '1', '2', '3', '5', '8', '13', '21', '?', '☕']}
+              cards={room.customDeck && room.customDeck.length > 0 ? room.customDeck : DECK_PRESETS.fibonacci}
               selectedVote={myVote}
               onVote={handleVote}
               disabled={room.votingState === 'revealed'}

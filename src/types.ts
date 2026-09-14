@@ -111,7 +111,7 @@ export function isAbstainCard(card: string): boolean {
 }
 
 export const DECK_PRESETS: Record<DeckType, string[]> = {
-  fibonacci: ['0', '1', '2', '3', '5', '8', '13', '21', '34', '55', '89', '?', '☕'],
+  fibonacci: ['0', '1', '2', '3', '5', '8', '13', '21', '?', '☕'],
   modified_fibonacci: ['0', '0.5', '1', '2', '3', '5', '8', '13', '20', '40', '100', '?', '☕'],
   tshirt: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '?', '☕'],
   powers_of_2: ['0', '1', '2', '4', '8', '16', '32', '64', '?', '☕'],
@@ -120,7 +120,7 @@ export const DECK_PRESETS: Record<DeckType, string[]> = {
 };
 
 export const DECK_LABELS: Record<DeckType, string> = {
-  fibonacci: 'Fibonacci (0, 1, 2, 3, 5, 8, 13, 21...)',
+  fibonacci: 'Fibonacci (0, 1, 2, 3, 5, 8, 13, 21)',
   modified_fibonacci: 'Scrum Standard (0, 0.5, 1, 2, 3, 5, 8, 13...)',
   tshirt: 'T-Shirt (XS, S, M, L, XL, XXL)',
   powers_of_2: 'Potęgi 2 (0, 1, 2, 4, 8, 16, 32...)',
