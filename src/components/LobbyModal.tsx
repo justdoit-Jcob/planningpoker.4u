@@ -102,7 +102,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({ initialRoomId, onJoin })
           {/* Room ID or Name */}
           <div>
             <label className="block text-slate-300 font-semibold mb-1">
-              {isCreatingNew ? 'Nazwa sesji / sprintu' : 'Kod lub identyfikator pokoju'}
+              {isCreatingNew ? 'Nazwa sesji / sprintu' : 'ID pokoju'}
             </label>
             {isCreatingNew ? (
               <input
@@ -130,13 +130,13 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({ initialRoomId, onJoin })
           {/* User Display Name */}
           <div>
             <label className="block text-slate-300 font-semibold mb-1">
-              Twoje imię lub pseudonim w zespole *
+              Nazwa użytkownika
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="np. Jakub (Frontend / Fullstack)"
+              placeholder="Imię, inicjały lub pseudonim"
               required
               className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
               autoFocus
