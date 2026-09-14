@@ -1,0 +1,30 @@
+# Zależności i artefakty budowania — powstają wewnątrz obrazu.
+node_modules
+dist
+build
+coverage
+
+# Historia i metadane repozytorium.
+.git
+.gitignore
+.github
+
+# Sekrety i konfiguracja lokalna.
+.env
+.env.*
+!.env.example
+
+# Narzędzia i edytory.
+.claude
+.vscode
+.idea
+*.log
+.DS_Store
+
+# Dokumentacja i pliki Dockera nie wpływają na build aplikacji.
+README.md
+README.pl.md
+Dockerfile
+.dockerignore
+docker-compose.yml
+docker-compose.*.yml

@@ -147,6 +147,51 @@ Aplikacja będzie dostępna pod adresem: `http://localhost:3000`.
 
 ---
 
+## 🐳 Docker i homelab
+
+```bash
+cp .env.example .env          # opcjonalnie: ustaw HOST_PORT / SESSION_SECRET
+docker compose up -d --build
+```
+
+Aplikacja jest wtedy dostępna pod `http://<adres-hosta>:3000` albo na porcie ustawionym w `HOST_PORT`.
+
+### Jak zbudowany jest obraz
+
+Build jest dwuetapowy. **Bun** kompiluje frontend i pakuje serwer w jeden plik CommonJS z wbudowanymi `express`, `ws` i `dotenv`; **node:22-alpine** uruchamia już tylko ten bundle wraz z plikami statycznymi. Obraz uruchomieniowy nie zawiera więc **ani `node_modules`, ani żadnych narzędzi deweloperskich** — Vite jest ładowany przez import dynamiczny, do którego dochodzi wyłącznie ścieżka deweloperska.
+
+Kontener działa jako nieuprzywilejowany użytkownik `node` i ma `HEALTHCHECK` odpytujący `/api/health` busyboxowym `wget`, więc `docker ps` pokazuje faktyczną gotowość, a nie samo „proces żyje”.
+
+### Codzienne komendy
+
+```bash
+docker compose logs -f              # podgląd logów
+docker compose restart              # restart usługi
+docker compose up -d --build        # przebudowa po pobraniu zmian
+docker compose down                 # zatrzymanie i usunięcie kontenera
+```
+
+### Za reverse proxy
+
+Aplikacja opiera się na WebSocketach, więc proxy musi przepuścić upgrade połączenia. W **Nginx** / Nginx Proxy Manager oznacza to włączenie obsługi WebSocket dla hosta albo dodanie:
+
+```nginx
+proxy_http_version 1.1;
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection "upgrade";
+proxy_read_timeout 3600s;
+```
+
+W **Traefiku** nie trzeba nic dodawać — upgrade jest przepuszczany domyślnie.
+
+Klient wysyła `PING` co 15 sekund właśnie po to, żeby proxy z limitem bezczynności nie zamknęło cichego tunelu, ale podniesienie `proxy_read_timeout` i tak warto zrobić.
+
+### Skalowanie
+
+Stan pokoi żyje w pamięci procesu serwera, więc **uruchamiaj jedną replikę**. Druga instancja obsługiwałaby własny, całkowicie odrębny zestaw pokoi. Nie ma też czego podpinać jako wolumen — restart świadomie kasuje wszystkie pokoje i historię.
+
+---
+
 ## 🧪 Testy
 
 ```bash

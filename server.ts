@@ -3,7 +3,6 @@ import http from 'http';
 import path from 'path';
 import { WebSocketServer, WebSocket, RawData } from 'ws';
 import dotenv from 'dotenv';
-import { createServer as createViteServer } from 'vite';
 import { createHmac, randomUUID, randomBytes, timingSafeEqual } from 'crypto';
 import {
   RoomState,
@@ -746,6 +745,10 @@ app.get('/api/rooms/:roomId', (req, res) => {
 
 async function start() {
   if (!IS_PRODUCTION) {
+    // Import dynamiczny, nie na górze pliku: dzięki temu Vite nie wchodzi
+    // w graf zależności builda produkcyjnego. Obraz kontenera nie musi
+    // wtedy w ogóle zawierać narzędzi deweloperskich.
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',

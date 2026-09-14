@@ -1,0 +1,45 @@
+# Planning Poker Live — uruchomienie w homelabie.
+#
+#   docker compose up -d --build
+#
+# Ustawienia nadpisujesz w pliku .env obok tego pliku (patrz .env.example).
+
+# Nazwa projektu przypięta na stałe: bez tego Compose wyprowadza ją z nazwy
+# katalogu, więc kontener i sieć nazywałyby się inaczej na każdej maszynie.
+name: planning-poker
+
+services:
+  planning-poker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: planning-poker:latest
+    container_name: planning-poker
+    restart: unless-stopped
+
+    # Po lewej port na hoście, po prawej stały port w kontenerze.
+    # Zmień HOST_PORT w .env, jeśli 3000 jest już zajęte.
+    ports:
+      - "${HOST_PORT:-3000}:3000"
+
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Podpisuje tokeny tożsamości uczestników. Puste = losowy przy starcie.
+      SESSION_SECRET: "${SESSION_SECRET:-}"
+
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+    # Stan pokoi żyje w pamięci procesu, więc nie ma wolumenów do podpięcia
+    # ani sensu w zwiększaniu liczby replik — druga instancja miałaby własne,
+    # niezależne pokoje.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

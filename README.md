@@ -157,6 +157,51 @@ Open your browser at [http://localhost:3000](http://localhost:3000).
 
 ---
 
+## 🐳 Docker & Homelab
+
+```bash
+cp .env.example .env          # optional: adjust HOST_PORT / SESSION_SECRET
+docker compose up -d --build
+```
+
+The app is then available on `http://<your-host>:3000`, or whatever `HOST_PORT` you set.
+
+### What the image looks like
+
+The build is two-stage. **Bun** compiles the frontend and bundles the server into a single CommonJS file with `express`, `ws` and `dotenv` inlined; **node:22-alpine** then runs nothing but that bundle plus the static assets. The runtime image therefore carries **no `node_modules` and no build tooling at all** — Vite is loaded through a dynamic import that only the development path ever reaches.
+
+The container runs as the unprivileged `node` user and ships a `HEALTHCHECK` that polls `/api/health` with busybox `wget`, so `docker ps` reports real readiness rather than just "process alive".
+
+### Everyday commands
+
+```bash
+docker compose logs -f              # follow logs
+docker compose restart              # restart the service
+docker compose up -d --build        # rebuild after pulling changes
+docker compose down                 # stop and remove the container
+```
+
+### Behind a reverse proxy
+
+Planning Poker is WebSocket-first, so the proxy must forward the upgrade. In **Nginx** / Nginx Proxy Manager that means enabling WebSocket support on the host, or adding:
+
+```nginx
+proxy_http_version 1.1;
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection "upgrade";
+proxy_read_timeout 3600s;
+```
+
+In **Traefik** no extra configuration is needed — upgrades are forwarded by default.
+
+The client sends a `PING` every 15 seconds specifically so that proxies with idle timeouts do not tear down a quiet tunnel, but raising `proxy_read_timeout` is still worth doing.
+
+### Scaling
+
+Room state lives in the server process memory, so **run a single replica**. A second instance would serve its own, entirely separate set of rooms. There is nothing to mount as a volume either — a restart intentionally clears all rooms and history.
+
+---
+
 ## 🧪 Testing
 
 ```bash
