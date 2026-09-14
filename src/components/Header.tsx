@@ -105,10 +105,12 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40 px-3 sm:px-4 py-2 sm:py-2.5 text-slate-100">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-2.5 sm:gap-3">
+      <div className="max-w-7xl mx-auto flex flex-col gap-2.5 sm:gap-3">
+        {/* Wiersz 1: identyfikacja pokoju przy lewej krawedzi, sterowanie przy prawej */}
+        <div className="w-full flex items-center justify-between gap-2 sm:gap-3">
         {/* Top / Left: Branding & Room Info & Share */}
-        <div className="w-full md:w-auto flex items-center justify-between md:justify-start gap-2 sm:gap-3">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
             <button
               type="button"
               onClick={onGoHome}
@@ -142,7 +144,7 @@ export const Header: React.FC<HeaderProps> = ({
               ) : (
                 <div className="flex items-center gap-1.5">
                   <h1
-                    className={`text-xs sm:text-sm md:text-base font-bold tracking-tight text-white ${
+                    className={`text-xs sm:text-sm md:text-base font-bold tracking-tight text-white truncate ${
                       isModerator ? 'cursor-pointer hover:text-indigo-300' : ''
                     }`}
                     onClick={() => {
@@ -192,76 +194,9 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
 
-        {/* Center: Synced Timer & Quick Reactions */}
-        <div className="w-full md:w-auto flex items-center justify-between md:justify-center gap-2 sm:gap-3">
-          {/* Countdown Timer */}
-          <div className="flex items-center bg-slate-950/80 border border-slate-800 rounded-xl px-2.5 py-1 text-slate-200 shadow-inner">
-            <span
-              className={`font-mono text-xs sm:text-sm font-semibold tracking-wider mr-2 ${
-                room.timer.remaining <= 10 && room.timer.isRunning ? 'text-amber-400 animate-pulse' : 'text-indigo-200'
-              }`}
-            >
-              {formatTimer(room.timer.remaining)}
-            </span>
-
-            <div className="flex items-center gap-1">
-              {room.timer.isRunning ? (
-                <button
-                  onClick={() => onUpdateTimer('pause')}
-                  className="min-h-[32px] min-w-[32px] flex items-center justify-center p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white cursor-pointer"
-                  title="Wstrzymaj timer"
-                >
-                  <Pause className="w-3.5 h-3.5" />
-                </button>
-              ) : (
-                <button
-                  onClick={() => onUpdateTimer('start')}
-                  className="min-h-[32px] min-w-[32px] flex items-center justify-center p-1.5 hover:bg-slate-800 rounded text-emerald-400 hover:text-emerald-300 cursor-pointer"
-                  title="Uruchom timer"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                </button>
-              )}
-
-              <button
-                onClick={() => onUpdateTimer('reset')}
-                className="min-h-[32px] min-w-[32px] flex items-center justify-center p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white cursor-pointer"
-                title="Zresetuj timer"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-              </button>
-
-              <div className="hidden sm:flex items-center gap-1 ml-1 pl-1 border-l border-slate-800 text-[11px] text-slate-400">
-                <button onClick={() => onUpdateTimer('set', 60)} className="hover:text-white px-1 py-0.5">
-                  1m
-                </button>
-                <button onClick={() => onUpdateTimer('set', 90)} className="hover:text-white px-1 py-0.5">
-                  1.5m
-                </button>
-                <button onClick={() => onUpdateTimer('set', 120)} className="hover:text-white px-1 py-0.5">
-                  2m
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick reactions */}
-          <div className="flex items-center gap-0.5 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80">
-            {quickReactions.map((emoji) => (
-              <button
-                key={emoji}
-                onClick={() => onSendReaction(emoji)}
-                className="w-8 h-8 min-h-[32px] min-w-[32px] flex items-center justify-center hover:bg-slate-800 rounded-lg text-sm sm:text-base hover:scale-125 transition-transform active:scale-90 cursor-pointer"
-                title={`Wyślij reakcję ${emoji}`}
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* Right: Controls & History */}
-        <div className="w-full md:w-auto flex items-center justify-end gap-1.5 sm:gap-2">
+        <div className="flex items-center justify-end gap-1.5 sm:gap-2 shrink-0">
           {/* Deck selector dropdown */}
           <div className="relative" ref={deckMenuRef}>
             <button
@@ -357,6 +292,75 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Settings className="w-4 h-4" />
           </button>
+        </div>
+        </div>
+
+        {/* Wiersz 2: timer i reakcje */}
+        <div className="w-full flex items-center justify-center gap-2 sm:gap-3">
+          {/* Countdown Timer */}
+          <div className="flex items-center bg-slate-950/80 border border-slate-800 rounded-xl px-2.5 py-1 text-slate-200 shadow-inner">
+            <span
+              className={`font-mono text-xs sm:text-sm font-semibold tracking-wider mr-2 ${
+                room.timer.remaining <= 10 && room.timer.isRunning ? 'text-amber-400 animate-pulse' : 'text-indigo-200'
+              }`}
+            >
+              {formatTimer(room.timer.remaining)}
+            </span>
+
+            <div className="flex items-center gap-1">
+              {room.timer.isRunning ? (
+                <button
+                  onClick={() => onUpdateTimer('pause')}
+                  className="min-h-[32px] min-w-[32px] flex items-center justify-center p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white cursor-pointer"
+                  title="Wstrzymaj timer"
+                >
+                  <Pause className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => onUpdateTimer('start')}
+                  className="min-h-[32px] min-w-[32px] flex items-center justify-center p-1.5 hover:bg-slate-800 rounded text-emerald-400 hover:text-emerald-300 cursor-pointer"
+                  title="Uruchom timer"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                </button>
+              )}
+
+              <button
+                onClick={() => onUpdateTimer('reset')}
+                className="min-h-[32px] min-w-[32px] flex items-center justify-center p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white cursor-pointer"
+                title="Zresetuj timer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+
+              <div className="hidden sm:flex items-center gap-1 ml-1 pl-1 border-l border-slate-800 text-[11px] text-slate-400">
+                <button onClick={() => onUpdateTimer('set', 60)} className="hover:text-white px-1 py-0.5">
+                  1m
+                </button>
+                <button onClick={() => onUpdateTimer('set', 90)} className="hover:text-white px-1 py-0.5">
+                  1.5m
+                </button>
+                <button onClick={() => onUpdateTimer('set', 120)} className="hover:text-white px-1 py-0.5">
+                  2m
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick reactions */}
+          <div className="flex items-center gap-0.5 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80">
+            {quickReactions.map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => onSendReaction(emoji)}
+                className="w-8 h-8 min-h-[32px] min-w-[32px] flex items-center justify-center hover:bg-slate-800 rounded-lg text-sm sm:text-base hover:scale-125 transition-transform active:scale-90 cursor-pointer"
+                title={`Wyślij reakcję ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </header>
