@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Eye, Vote, Sparkles, ArrowRight, Shield } from 'lucide-react';
+import { Vote, Eye, ArrowRight } from 'lucide-react';
 import { AVATAR_COLORS, ParticipantRole } from '../types';
 
 interface LobbyModalProps {
@@ -80,7 +80,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({ initialRoomId, onJoin })
                 setIsCreatingNew(false);
                 if (!roomId) setRoomId('SPRINT-42');
               }}
-              className={`flex-1 py-2 rounded-lg font-semibold transition ${
+              className={`flex-1 py-2 rounded-lg font-semibold transition cursor-pointer ${
                 !isCreatingNew ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -91,7 +91,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({ initialRoomId, onJoin })
               onClick={() => {
                 generateNewRoomId();
               }}
-              className={`flex-1 py-2 rounded-lg font-semibold transition ${
+              className={`flex-1 py-2 rounded-lg font-semibold transition cursor-pointer ${
                 isCreatingNew ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -211,7 +211,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({ initialRoomId, onJoin })
         </form>
 
         <div className="mt-6 pt-4 border-t border-slate-800/80 text-center text-[11px] text-slate-500">
-          Wspiera skale: Fibonacci, Scrum Standard, T-Shirt, Potęgi 2 oraz Asystenta Gemini AI.
+          Wspiera skale: Fibonacci, Scrum Standard, T-Shirt, Potęgi 2 oraz Sekwencyjną.
         </div>
       </div>
     </div>

@@ -27,23 +27,16 @@ export interface VoteStats {
   max: string | null;
   totalVotes: number;
   distribution: Record<string, number>;
-  lowestVoters: string[]; // names of participants
-  highestVoters: string[]; // names of participants
+  lowestVoters: string[];
+  highestVoters: string[];
 }
 
-export interface Story {
-  id: string;
-  title: string;
-  description: string;
-  issueKey?: string;
-  url?: string;
-  notes?: string;
-  finalScore?: string | null;
-  status: 'active' | 'estimated' | 'queued';
-  votes?: Record<string, string>; // userId -> vote
-  stats?: VoteStats;
-  createdAt: number;
-  completedAt?: number;
+export interface EstimationRoundResult {
+  round: number;
+  topic: string;
+  consensusScore: string;
+  stats: VoteStats;
+  timestamp: number;
 }
 
 export interface TimerState {
@@ -53,25 +46,19 @@ export interface TimerState {
   endTime?: number;
 }
 
-export interface RoomSettings {
-  deckType: DeckType;
-  customDeck: string[];
-  autoReveal: boolean;
-  showAverage: boolean;
-}
-
 export interface RoomState {
   id: string;
   name: string;
+  topic: string;
+  round: number;
   deckType: DeckType;
   customDeck: string[];
   votingState: 'voting' | 'revealed';
-  currentStoryId: string | null;
-  stories: Story[];
   participants: Record<string, Participant>;
   timer: TimerState;
   autoReveal: boolean;
   showAverage: boolean;
+  history: EstimationRoundResult[];
 }
 
 export interface ReactionEvent {
@@ -93,11 +80,11 @@ export const DECK_PRESETS: Record<DeckType, string[]> = {
 
 export const DECK_LABELS: Record<DeckType, string> = {
   fibonacci: 'Fibonacci (0, 1, 2, 3, 5, 8, 13, 21...)',
-  modified_fibonacci: 'Scrum Standard (0, 0.5, 1, 2, 3, 5, 8, 13, 20, 40...)',
-  tshirt: 'T-Shirt Sizes (XS, S, M, L, XL, XXL)',
-  powers_of_2: 'Powers of 2 (0, 1, 2, 4, 8, 16, 32...)',
-  sequential: 'Sequential (1 to 10)',
-  custom: 'Custom Deck',
+  modified_fibonacci: 'Scrum Standard (0, 0.5, 1, 2, 3, 5, 8, 13...)',
+  tshirt: 'T-Shirt (XS, S, M, L, XL, XXL)',
+  powers_of_2: 'Potęgi 2 (0, 1, 2, 4, 8, 16, 32...)',
+  sequential: 'Sekwencyjna (1 do 10)',
+  custom: 'Własna talia',
 };
 
 export const AVATAR_COLORS = [

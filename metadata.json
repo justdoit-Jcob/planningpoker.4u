@@ -1,6 +1,8 @@
 {
   "name": "Planning Poker",
-  "description": "Real-time collaborative Planning Poker application for remote development teams with live synced rooms, customizable voting decks, sprint backlog queue, consensus analytics, timer, and AI story breakdown.",
+  "description": "Real-time collaborative Planning Poker application for remote development teams with dynamic round-based estimation, live synced table, customizable voting decks, and instant reset.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
