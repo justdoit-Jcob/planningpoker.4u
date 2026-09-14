@@ -149,12 +149,55 @@ Aplikacja będzie dostępna pod adresem: `http://localhost:3000`.
 
 ## 🐳 Docker i homelab
 
+### Gotowy obraz (zalecane na NAS)
+
+Każde wypchnięcie na `main` publikuje wieloarchitekturowy obraz (`linux/amd64` + `linux/arm64`) w GitHub Container Registry, więc maszyna docelowa nie musi niczego kompilować:
+
+```yaml
+name: planning-poker
+
+services:
+  planning-poker:
+    image: ghcr.io/justdoit-jcob/planningpoker.4u:latest
+    container_name: planning-poker
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      TZ: Europe/Warsaw
+      SESSION_SECRET: ""
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+```
+
+```bash
+docker compose up -d                          # pierwsze uruchomienie
+docker compose pull && docker compose up -d   # aktualizacja do najnowszego obrazu
+```
+
+To ścieżka dla OpenMediaVault, Synology, Unraida i każdej maszyny, na której wolisz nie instalować narzędzi budowania. Nie wymaga ani `gita`, ani lokalnej kopii repozytorium — wystarczy ten jeden plik.
+
+### Budowanie lokalnie ze źródeł
+
 ```bash
 cp .env.example .env          # opcjonalnie: ustaw HOST_PORT / SESSION_SECRET
 docker compose up -d --build
 ```
 
 Aplikacja jest wtedy dostępna pod `http://<adres-hosta>:3000` albo na porcie ustawionym w `HOST_PORT`.
+
+> Budowanie potrzebuje około 1 GB RAM na etap Vite oraz odpowiednio nowego BuildKita. Na słabszym NAS-ie lepiej użyć gotowego obrazu powyżej.
 
 ### Jak zbudowany jest obraz
 

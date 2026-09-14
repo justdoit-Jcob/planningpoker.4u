@@ -159,12 +159,55 @@ Open your browser at [http://localhost:3000](http://localhost:3000).
 
 ## 🐳 Docker & Homelab
 
+### Prebuilt image (recommended for a NAS)
+
+Every push to `main` publishes a multi-arch image (`linux/amd64` + `linux/arm64`) to GitHub Container Registry, so the target machine never has to compile anything:
+
+```yaml
+name: planning-poker
+
+services:
+  planning-poker:
+    image: ghcr.io/justdoit-jcob/planningpoker.4u:latest
+    container_name: planning-poker
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      TZ: Europe/Warsaw
+      SESSION_SECRET: ""
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+```
+
+```bash
+docker compose up -d                      # first run
+docker compose pull && docker compose up -d   # update to the latest image
+```
+
+This is the path to use on OpenMediaVault, Synology, Unraid or any box where you would rather not install a build toolchain. It needs neither `git` nor a local copy of the repository — only this file.
+
+### Building locally from source
+
 ```bash
 cp .env.example .env          # optional: adjust HOST_PORT / SESSION_SECRET
 docker compose up -d --build
 ```
 
 The app is then available on `http://<your-host>:3000`, or whatever `HOST_PORT` you set.
+
+> Building requires roughly 1 GB of RAM for the Vite step, and a BuildKit new enough to be worth using. On a low-powered NAS, prefer the prebuilt image above.
 
 ### What the image looks like
 
