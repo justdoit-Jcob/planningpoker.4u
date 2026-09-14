@@ -240,6 +240,28 @@ function checkAndAutoReveal(room: RoomState): boolean {
   return true;
 }
 
+/**
+ * Usuwa wpisy uczestników, którzy nie są już połączeni.
+ *
+ * Wywoływane na starcie nowej rundy, żeby stół nie zbierał wyszarzonych
+ * profili po osobach, które opuściły sesję.
+ *
+ * Świadomie NIE zeruje creatorId: twórca pokoju zachowuje prawo do roli
+ * moderatora również wtedy, gdy jego wpis zniknął. Powrót z ważnym tokenem
+ * odtwarza wpis pod tym samym identyfikatorem (patrz handleJoinRoom).
+ * Nikt połączony nie zostanie usunięty, więc aktualny moderator jest bezpieczny.
+ */
+function purgeDisconnected(room: RoomState): boolean {
+  let removed = false;
+  for (const [id, p] of Object.entries(room.participants)) {
+    if (!p.isConnected) {
+      delete room.participants[id];
+      removed = true;
+    }
+  }
+  return removed;
+}
+
 /** Czyści głosy i wraca do fazy głosowania. */
 function clearVotes(room: RoomState): void {
   room.votingState = 'voting';
@@ -430,12 +452,16 @@ function handleJoinRoom(
 
   let userId: string | null = null;
 
-  // P0-4: wejście w istniejący wpis wymaga podpisanego tokenu, nie samego id.
-  if (resume && room.participants[resume.userId] && verifyIdentity(roomId, resume.userId, resume.token)) {
+  // P0-4: prawo do konkretnego identyfikatora daje podpisany token, nie samo id.
+  if (resume && verifyIdentity(roomId, resume.userId, resume.token)) {
     userId = resume.userId;
   }
 
-  const isResuming = userId !== null;
+  // Wpis mógł zostać usunięty przy starcie nowej rundy. Token pozostaje ważny,
+  // więc odtwarzamy go pod tym samym identyfikatorem — dzięki temu twórca
+  // pokoju nie traci prawa do roli moderatora tylko dlatego, że wyszedł
+  // na chwilę między rundami.
+  const existing = userId !== null ? room.participants[userId] : undefined;
   if (!userId) userId = randomUUID();
 
   ctx.roomId = roomId;
@@ -443,8 +469,7 @@ function handleJoinRoom(
 
   const preferredRole: SelfAssignableRole = user.role;
 
-  if (isResuming) {
-    const existing = room.participants[userId];
+  if (existing) {
     existing.name = user.name;
     existing.avatarColor = user.avatarColor;
     existing.preferredRole = preferredRole;
@@ -527,6 +552,8 @@ function handleRoomMessage(
       // P2-3: reset czyści stół, ale nie podbija numeru rundy.
       clearVotes(room);
       resetTimer(room);
+      // Nowa runda zaczyna się bez profili osób, które wyszły z sesji.
+      if (purgeDisconnected(room)) reassignModerator(room);
       broadcastRoomState(room);
       break;
     }
@@ -563,6 +590,8 @@ function handleRoomMessage(
       room.topic = '';
       clearVotes(room);
       resetTimer(room);
+      // Nowa runda zaczyna się bez profili osób, które wyszły z sesji.
+      if (purgeDisconnected(room)) reassignModerator(room);
 
       broadcastRoomState(room);
       break;
