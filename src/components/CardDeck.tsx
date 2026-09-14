@@ -35,14 +35,22 @@ export const CardDeck: React.FC<CardDeckProps> = ({
 
   return (
     <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
-      <div className="text-center mb-1.5 sm:mb-2">
+      <div className="text-center mb-0">
         <span className="text-[10px] sm:text-xs uppercase tracking-widest text-slate-400 font-semibold">
           {disabled ? 'Karty odkryte lub estymacja wstrzymana' : 'Wybierz swoją kartę'}
         </span>
       </div>
 
-      {/* Responsive Horizontal Deck Carousel / Flex Grid */}
-      <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 overflow-x-auto pb-2 pt-1 px-1 scrollbar-thin">
+      {/*
+        Responsive Horizontal Deck Carousel / Flex Grid
+
+        Górny padding musi pomieścić uniesienie zaznaczonej karty
+        (-translate-y-2 = 8px, sm:-translate-y-3 = 12px) wraz z obwódką
+        ring-3 (3px). Bez tego karta wchodzi na napis powyżej, a ponieważ
+        overflow-x-auto wymusza przycinanie także w pionie — jest dodatkowo
+        obcinana u góry.
+      */}
+      <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 overflow-x-auto pb-2 pt-4 sm:pt-5 px-1 scrollbar-thin">
         {cards.map((card) => {
           const isSelected = selectedVote === card;
 
