@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Play,
   Pause,
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { DeckType, DECK_LABELS, Participant, ParticipantRole, RoomState } from '../types';
 import { soundEffects } from '../utils/audio';
+import { useDismissOnOutside, useEscapeKey } from '../hooks/useDismissOnOutside';
 
 interface HeaderProps {
   room: RoomState;
@@ -63,12 +64,29 @@ export const Header: React.FC<HeaderProps> = ({
     setSoundOn(state);
   };
 
+  const deckMenuRef = useRef<HTMLDivElement>(null);
+  const nameEditRef = useRef<HTMLDivElement>(null);
+
   const handleNameSave = () => {
     if (roomNameInput.trim() && roomNameInput !== room.name) {
       onUpdateSettings({ roomName: roomNameInput.trim() });
     }
     setEditingName(false);
   };
+
+  const handleNameCancel = () => {
+    setRoomNameInput(room.name);
+    setEditingName(false);
+  };
+
+  // Lista skali zamyka się po kliknięciu poza nią oraz po Escape.
+  // Referencja obejmuje też przycisk otwierający, żeby jego onClick
+  // nadal działał jako przełącznik.
+  useDismissOnOutside(deckMenuRef, showDeckMenu, () => setShowDeckMenu(false));
+  useEscapeKey(showDeckMenu, () => setShowDeckMenu(false));
+
+  // Kliknięcie poza polem nazwy zatwierdza ją — tak samo jak przycisk „Zapisz”.
+  useDismissOnOutside(nameEditRef, editingName, handleNameSave);
 
   const formatTimer = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -93,12 +111,15 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <div>
               {editingName ? (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5" ref={nameEditRef}>
                   <input
                     type="text"
                     value={roomNameInput}
                     onChange={(e) => setRoomNameInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleNameSave()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleNameSave();
+                      if (e.key === 'Escape') handleNameCancel();
+                    }}
                     className="bg-slate-800 text-xs sm:text-sm font-semibold text-white px-2 py-0.5 rounded border border-indigo-500 focus:outline-none"
                     autoFocus
                   />
@@ -115,7 +136,12 @@ export const Header: React.FC<HeaderProps> = ({
                     className={`text-xs sm:text-sm md:text-base font-bold tracking-tight text-white ${
                       isModerator ? 'cursor-pointer hover:text-indigo-300' : ''
                     }`}
-                    onClick={() => isModerator && setEditingName(true)}
+                    onClick={() => {
+                      if (!isModerator) return;
+                      // Zaczynamy od nazwy z serwera — lokalna mogła się zdezaktualizować.
+                      setRoomNameInput(room.name);
+                      setEditingName(true);
+                    }}
                     title={isModerator ? 'Kliknij, aby zmienić nazwę' : undefined}
                   >
                     {room.name}
@@ -228,7 +254,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Right: Controls & History */}
         <div className="w-full md:w-auto flex items-center justify-end gap-1.5 sm:gap-2">
           {/* Deck selector dropdown */}
-          <div className="relative">
+          <div className="relative" ref={deckMenuRef}>
             <button
               onClick={() => setShowDeckMenu(!showDeckMenu)}
               className="min-h-[38px] flex items-center gap-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded-lg cursor-pointer"

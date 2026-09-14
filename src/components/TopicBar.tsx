@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Edit2, Check } from 'lucide-react';
+import { useDismissOnOutside } from '../hooks/useDismissOnOutside';
 
 interface TopicBarProps {
   topic: string;
@@ -10,15 +11,26 @@ interface TopicBarProps {
 export const TopicBar: React.FC<TopicBarProps> = ({ topic, round, onUpdateTopic }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(topic);
+  const editRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setValue(topic);
   }, [topic]);
 
   const handleSave = () => {
-    onUpdateTopic(value.trim());
+    const next = value.trim();
+    // Bez zmiany nie ma po co rozsyłać stanu całego pokoju.
+    if (next !== topic) onUpdateTopic(next);
     setIsEditing(false);
   };
+
+  const handleCancel = () => {
+    setValue(topic);
+    setIsEditing(false);
+  };
+
+  // Kliknięcie poza polem zatwierdza wpis — tak samo jak przycisk „Zapisz”.
+  useDismissOnOutside(editRef, isEditing, handleSave);
 
   return (
     <div className="w-full max-w-4xl mx-auto my-2 px-2 sm:px-4">
@@ -33,17 +45,14 @@ export const TopicBar: React.FC<TopicBarProps> = ({ topic, round, onUpdateTopic 
         {/* Topic Display or Edit */}
         <div className="flex-1 min-w-0">
           {isEditing ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" ref={editRef}>
               <input
                 type="text"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSave();
-                  if (e.key === 'Escape') {
-                    setValue(topic);
-                    setIsEditing(false);
-                  }
+                  if (e.key === 'Escape') handleCancel();
                 }}
                 placeholder="Wpisz temat, nazwę zadania lub link (opcjonalnie)..."
                 className="w-full bg-slate-950 text-white text-xs sm:text-sm font-medium px-3 py-1.5 rounded-lg border border-indigo-500 focus:outline-none placeholder-slate-500"
