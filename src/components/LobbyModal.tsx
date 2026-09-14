@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Vote, Eye, ArrowRight } from 'lucide-react';
-import { AVATAR_COLORS, ParticipantRole } from '../types';
+import { AVATAR_COLORS, SelfAssignableRole } from '../types';
 
 interface LobbyModalProps {
   initialRoomId: string;
@@ -8,7 +8,7 @@ interface LobbyModalProps {
     roomId: string;
     roomName?: string;
     name: string;
-    role: ParticipantRole;
+    role: SelfAssignableRole;
     avatarColor: string;
   }) => void;
 }
@@ -17,7 +17,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({ initialRoomId, onJoin })
   const [name, setName] = useState(() => localStorage.getItem('poker_username') || '');
   const [roomId, setRoomId] = useState(() => initialRoomId || 'SPRINT-42');
   const [roomName, setRoomName] = useState('Planowanie Sprintu #42');
-  const [role, setRole] = useState<ParticipantRole>('voter');
+  const [role, setRole] = useState<SelfAssignableRole>('voter');
   const [avatarColor, setAvatarColor] = useState(
     () => localStorage.getItem('poker_avatar') || AVATAR_COLORS[0]
   );

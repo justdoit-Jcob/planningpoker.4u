@@ -83,8 +83,8 @@ export const ParticipantsModal: React.FC<ParticipantsModalProps> = ({
 
                 {/* Vote Indicator */}
                 <div className="shrink-0">
-                  {p.role === 'voter' ? (
-                    p.vote !== null ? (
+                  {p.role !== 'observer' ? (
+                    p.hasVoted ? (
                       <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-2 py-0.5 rounded-lg">
                         <CheckCircle2 className="w-3 h-3" />
                         <span>Oddał głos</span>

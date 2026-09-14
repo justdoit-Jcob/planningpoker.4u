@@ -1,17 +1,9 @@
 import React, { useState } from 'react';
-import {
-  Eye,
-  RotateCcw,
-  Sparkles,
-  BarChart2,
-  Trophy,
-  AlertTriangle,
-  Play,
-  Share2,
-} from 'lucide-react';
-import { Participant, RoomState, VoteStats } from '../types';
-import { calculateVoteStats } from '../utils/stats';
+import { Eye, RotateCcw, BarChart2, Trophy, AlertTriangle } from 'lucide-react';
+import { Participant, RoomState, VoteStats, canCastVote } from '../types';
+import { calculateVoteStats, isCoffeeMajority, isFullConsensus } from '../utils/stats';
 import { soundEffects } from '../utils/audio';
+import { fireCoffeeConfetti, fireConsensusConfetti } from '../utils/celebrate';
 
 interface PokerTableProps {
   room: RoomState;
@@ -31,27 +23,37 @@ export const PokerTable: React.FC<PokerTableProps> = ({
   onInvite,
 }) => {
   const participants = Object.values(room.participants) as Participant[];
-  const voters = participants.filter((p) => p.role === 'voter');
+  // Przy stole siedzą wszyscy, którzy mogą oddać głos — także moderator (P2-1).
+  const voters = participants.filter(canCastVote);
   const observers = participants.filter((p) => p.role === 'observer');
   const isRevealed = room.votingState === 'revealed';
 
-  const votesCount = voters.filter((p) => p.vote !== null && p.isConnected).length;
-  const totalEligibleVoters = voters.filter((p) => p.isConnected).length;
+  // Licznik postępu dotyczy wyłącznie wymaganych głosujących: moderator może
+  // estymować, ale nie musi, więc nigdy nie blokuje odkrycia kart.
+  const requiredVoters = participants.filter((p) => p.role === 'voter' && p.isConnected);
+  const votesCount = requiredVoters.filter((p) => p.hasVoted).length;
+  const totalEligibleVoters = requiredVoters.length;
   const allVoted = totalEligibleVoters > 0 && votesCount === totalEligibleVoters;
 
   const currentStats: VoteStats = calculateVoteStats(room.participants);
 
-  const me = room.participants[selfId];
-  const isModerator = me?.role === 'moderator';
-
   const [selectedScore, setSelectedScore] = useState<string>('');
+
+  const coffeeBreak = isCoffeeMajority(currentStats);
+  const fullConsensus = isFullConsensus(currentStats);
 
   React.useEffect(() => {
     if (isRevealed) {
       soundEffects.playReveal();
-      if (currentStats.consensus === 100 && currentStats.totalVotes > 1) {
+
+      if (coffeeBreak) {
+        // Zespół prosi o przerwę zamiast estymaty (P2-2).
+        fireCoffeeConfetti();
+      } else if (fullConsensus) {
         soundEffects.playConsensus();
+        fireConsensusConfetti();
       }
+
       if (currentStats.mode.length > 0) {
         setSelectedScore(currentStats.mode[0]);
       } else if (currentStats.median !== null) {
@@ -60,7 +62,7 @@ export const PokerTable: React.FC<PokerTableProps> = ({
     } else {
       setSelectedScore('');
     }
-  }, [isRevealed, currentStats.consensus, currentStats.totalVotes]);
+  }, [isRevealed, coffeeBreak, fullConsensus]);
 
   const handleFinishRound = () => {
     if (!selectedScore) return;
@@ -223,7 +225,8 @@ export const PokerTable: React.FC<PokerTableProps> = ({
           <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 max-w-4xl mx-auto">
             {voters.map((p) => {
               const isSelf = p.id === selfId;
-              const hasVoted = p.vote !== null;
+              // Przed odkryciem serwer nie przysyła cudzych kart — tylko sam fakt głosu (P0-1).
+              const hasVoted = p.hasVoted;
 
               return (
                 <div

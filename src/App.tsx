@@ -4,6 +4,7 @@ import {
   ParticipantRole,
   ReactionEvent,
   RoomState,
+  SelfAssignableRole,
 } from './types';
 import { Header } from './components/Header';
 import { TopicBar } from './components/TopicBar';
@@ -16,15 +17,48 @@ import { SettingsModal } from './components/SettingsModal';
 import { ReactionsOverlay } from './components/ReactionsOverlay';
 import { soundEffects } from './utils/audio';
 
-export default function App() {
-  const [selfId] = useState<string>(() => {
-    let id = sessionStorage.getItem('poker_self_id');
-    if (!id) {
-      id = 'user-' + Math.random().toString(36).substring(2, 9);
-      sessionStorage.setItem('poker_self_id', id);
+interface Identity {
+  userId: string;
+  token: string;
+}
+
+const RECONNECT_BASE_MS = 1000;
+const RECONNECT_MAX_MS = 30000;
+const REACTION_TTL_MS = 3000;
+
+/**
+ * Tożsamość nadaje serwer (P0-4). Trzymamy ją per pokój, żeby wznowienie
+ * połączenia trafiło we właściwy wpis uczestnika, a nie tworzyło nowego.
+ */
+function identityStorageKey(roomId: string): string {
+  return `poker_identity_${roomId}`;
+}
+
+function loadIdentity(roomId: string): Identity | null {
+  try {
+    const raw = sessionStorage.getItem(identityStorageKey(roomId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<Identity>;
+    if (typeof parsed.userId === 'string' && typeof parsed.token === 'string') {
+      return { userId: parsed.userId, token: parsed.token };
     }
-    return id;
-  });
+  } catch {
+    // Brak dostępu do sessionStorage lub uszkodzony wpis — startujemy na czysto.
+  }
+  return null;
+}
+
+function saveIdentity(roomId: string, identity: Identity): void {
+  try {
+    sessionStorage.setItem(identityStorageKey(roomId), JSON.stringify(identity));
+  } catch {
+    // Brak trwałości tożsamości jest do przeżycia — po odświeżeniu wejdziemy jako nowy uczestnik.
+  }
+}
+
+export default function App() {
+  // Identyfikator pochodzi teraz z serwera, nie z losowania po stronie klienta.
+  const [selfId, setSelfId] = useState<string>('');
 
   const [roomId, setRoomId] = useState<string>(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -43,11 +77,24 @@ export default function App() {
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
+  const reactionTimersRef = useRef<Set<number>>(new Set());
+
+  /**
+   * Stan połączenia trzymany w refach, nie w domknięciu.
+   *
+   * Poprzednio ws.onclose domykał się nad wartością isJoined z chwili tworzenia
+   * callbacku — zawsze false, bo połączenie powstawało w tym samym cyklu co
+   * setIsJoined(true). Automatyczne wznawianie nigdy się nie uruchamiało (P1-1).
+   */
+  const isJoinedRef = useRef(false);
+  const attemptRef = useRef(0);
+  const identityRef = useRef<Identity | null>(null);
+  const connectRef = useRef<(targetRoomId: string) => void>(() => {});
 
   // User details saved upon joining
   const userProfileRef = useRef<{
     name: string;
-    role: ParticipantRole;
+    role: SelfAssignableRole;
     avatarColor: string;
     roomName?: string;
   }>({
@@ -63,10 +110,21 @@ export default function App() {
     }
   }, []);
 
+  const clearReconnectTimer = useCallback(() => {
+    if (reconnectTimeoutRef.current !== null) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+  }, []);
+
   // Connect to WebSocket Server
   const connectWebSocket = useCallback(
     (targetRoomId: string) => {
+      clearReconnectTimer();
+
       if (socketRef.current) {
+        // Stare połączenie nie może wywołać ponownego łączenia.
+        socketRef.current.onclose = null;
         socketRef.current.close();
       }
 
@@ -79,19 +137,23 @@ export default function App() {
 
       ws.onopen = () => {
         setIsConnected(true);
-        // Join room
+        attemptRef.current = 0;
+
         const profile = userProfileRef.current;
+        const identity = identityRef.current ?? loadIdentity(targetRoomId);
+
         ws.send(
           JSON.stringify({
             type: 'JOIN_ROOM',
             roomId: targetRoomId,
             roomName: profile.roomName,
             user: {
-              id: selfId,
               name: profile.name || 'Developer',
               role: profile.role,
               avatarColor: profile.avatarColor,
             },
+            // Wznowienie istniejącego wpisu wymaga podpisanego tokenu.
+            ...(identity ? { resume: identity } : {}),
           })
         );
       };
@@ -101,6 +163,14 @@ export default function App() {
           const data = JSON.parse(event.data);
 
           switch (data.type) {
+            case 'IDENTITY': {
+              const identity: Identity = { userId: data.userId, token: data.token };
+              identityRef.current = identity;
+              saveIdentity(targetRoomId, identity);
+              setSelfId(identity.userId);
+              break;
+            }
+
             case 'ROOM_STATE':
             case 'STATE_UPDATE':
               setRoom(data.room);
@@ -115,11 +185,19 @@ export default function App() {
               soundEffects.playTimerBeep();
               break;
 
-            case 'REACTION':
-              setReactions((prev) => [...prev, data.reaction]);
-              setTimeout(() => {
-                setReactions((prev) => prev.filter((r) => r.id !== data.reaction.id));
-              }, 3000);
+            case 'REACTION': {
+              const reaction: ReactionEvent = data.reaction;
+              setReactions((prev) => [...prev, reaction]);
+              const timer = window.setTimeout(() => {
+                reactionTimersRef.current.delete(timer);
+                setReactions((prev) => prev.filter((r) => r.id !== reaction.id));
+              }, REACTION_TTL_MS);
+              reactionTimersRef.current.add(timer);
+              break;
+            }
+
+            case 'ERROR':
+              console.warn('Serwer odrzucił akcję:', data.code, data.detail ?? '');
               break;
           }
         } catch (e) {
@@ -129,28 +207,40 @@ export default function App() {
 
       ws.onclose = () => {
         setIsConnected(false);
-        // Reconnect after 2 seconds if joined
-        if (isJoined) {
-          reconnectTimeoutRef.current = window.setTimeout(() => {
-            if (targetRoomId) {
-              connectWebSocket(targetRoomId);
-            }
-          }, 2000);
-        }
+        if (!isJoinedRef.current) return;
+
+        // Wykładniczy backoff zamiast stałych 2 sekund w nieskończoność.
+        const attempt = attemptRef.current++;
+        const delay = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** attempt);
+        reconnectTimeoutRef.current = window.setTimeout(() => {
+          connectRef.current(targetRoomId);
+        }, delay);
       };
 
       ws.onerror = (err) => {
         console.error('WebSocket connection error:', err);
       };
     },
-    [selfId, isJoined]
+    [clearReconnectTimer]
   );
+
+  // Najświeższa wersja funkcji dla ponowień wywoływanych z onclose.
+  useEffect(() => {
+    connectRef.current = connectWebSocket;
+  }, [connectWebSocket]);
 
   // Cleanup on unmount
   useEffect(() => {
+    const reactionTimers = reactionTimersRef.current;
     return () => {
-      if (socketRef.current) socketRef.current.close();
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      isJoinedRef.current = false;
+      if (socketRef.current) {
+        socketRef.current.onclose = null;
+        socketRef.current.close();
+      }
+      if (reconnectTimeoutRef.current !== null) clearTimeout(reconnectTimeoutRef.current);
+      reactionTimers.forEach((t) => clearTimeout(t));
+      reactionTimers.clear();
     };
   }, []);
 
@@ -159,7 +249,7 @@ export default function App() {
     roomId: string;
     roomName?: string;
     name: string;
-    role: ParticipantRole;
+    role: SelfAssignableRole;
     avatarColor: string;
   }) => {
     userProfileRef.current = {
@@ -168,8 +258,13 @@ export default function App() {
       avatarColor: data.avatarColor,
       roomName: data.roomName,
     };
+    identityRef.current = loadIdentity(data.roomId);
+
     setRoomId(data.roomId);
     setIsJoined(true);
+    // Ref ustawiamy synchronicznie — onclose czyta go, zanim React przerysuje.
+    isJoinedRef.current = true;
+    attemptRef.current = 0;
 
     // Update URL query string without reloading
     const newUrl = `${window.location.pathname}?room=${data.roomId}`;
@@ -212,7 +307,8 @@ export default function App() {
   };
 
   const handleToggleRole = (newRole: ParticipantRole) => {
-    sendMessage({ type: 'UPDATE_ROLE', role: newRole });
+    // Serwer przyjmuje wyłącznie role samodzielne; 'moderator' nadaje sam (P0-2).
+    sendMessage({ type: 'UPDATE_ROLE', role: newRole === 'observer' ? 'observer' : 'voter' });
   };
 
   const handleUpdateSettings = (settings: { autoReveal?: boolean; showAverage?: boolean; roomName?: string }) => {
@@ -224,7 +320,7 @@ export default function App() {
   };
 
   // Participant info
-  const myVote = room?.participants[selfId]?.vote || null;
+  const myVote = room?.participants[selfId]?.vote ?? null;
   const me = room?.participants[selfId];
   const userRole = me?.role || 'voter';
 

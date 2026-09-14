@@ -8,24 +8,49 @@ export type DeckType =
 
 export type ParticipantRole = 'voter' | 'observer' | 'moderator';
 
+/** Rola, którą uczestnik może nadać sobie sam. 'moderator' nadaje wyłącznie serwer. */
+export type SelfAssignableRole = Extract<ParticipantRole, 'voter' | 'observer'>;
+
+export const SELF_ASSIGNABLE_ROLES: SelfAssignableRole[] = ['voter', 'observer'];
+
 export interface Participant {
   id: string;
   name: string;
+  /** Rola efektywna — 'moderator' jeśli uczestnik aktualnie trzyma tę funkcję. */
   role: ParticipantRole;
+  /** Rola wybrana przez uczestnika; wraca do niej po utracie funkcji moderatora. */
+  preferredRole: SelfAssignableRole;
   avatarColor: string;
+  /**
+   * Oddany głos. Na łączu redagowany: przed odkryciem kart każdy odbiorca
+   * widzi wyłącznie własny głos, pozostałe przychodzą jako null.
+   */
   vote: string | null;
+  /** Czy uczestnik oddał głos — bezpieczne do rozesłania przed odkryciem. */
+  hasVoted: boolean;
   isConnected: boolean;
   joinedAt: number;
+  /** Pozycja w kolejce dołączeń — wyznacza następcę moderatora. */
+  joinOrder: number;
+  /** Ostatnia aktywność; steruje sprzątaniem porzuconych wpisów. */
+  lastSeen: number;
 }
 
 export interface VoteStats {
   average: number | null;
   median: number | null;
   mode: string[];
-  consensus: number; // percentage 0 - 100
+  consensus: number; // procent 0 - 100, liczony wyłącznie z kart szacujących
   min: string | null;
   max: string | null;
+  /** Wszystkie oddane głosy, razem z wstrzymaniami. */
   totalVotes: number;
+  /** Głosy będące realną estymatą (bez '?' i '☕'). */
+  estimatingVotes: number;
+  /** Liczba wstrzymań ('?' oraz '☕'). */
+  abstentions: number;
+  /** Liczba głosów na '☕' — steruje konfetti z kawą. */
+  coffeeVotes: number;
   distribution: Record<string, number>;
   lowestVoters: string[];
   highestVoters: string[];
@@ -40,8 +65,8 @@ export interface EstimationRoundResult {
 }
 
 export interface TimerState {
-  duration: number; // seconds
-  remaining: number; // seconds
+  duration: number; // sekundy
+  remaining: number; // sekundy
   isRunning: boolean;
   endTime?: number;
 }
@@ -59,6 +84,12 @@ export interface RoomState {
   autoReveal: boolean;
   showAverage: boolean;
   history: EstimationRoundResult[];
+  /** Twórca pokoju — odzyskuje moderatora po powrocie. */
+  creatorId: string | null;
+  /** Licznik nadający kolejne joinOrder. */
+  joinCounter: number;
+  /** Ostatnia aktywność w pokoju; steruje wygaszaniem pustych pokoi. */
+  lastActivity: number;
 }
 
 export interface ReactionEvent {
@@ -67,6 +98,16 @@ export interface ReactionEvent {
   userId: string;
   userName: string;
   timestamp: number;
+}
+
+export const COFFEE_CARD = '☕';
+export const UNSURE_CARD = '?';
+
+/** Karty, które nie są estymatą — poza konsensusem, modą i średnią. */
+export const ABSTAIN_CARDS: readonly string[] = [UNSURE_CARD, COFFEE_CARD];
+
+export function isAbstainCard(card: string): boolean {
+  return ABSTAIN_CARDS.includes(card);
 }
 
 export const DECK_PRESETS: Record<DeckType, string[]> = {
@@ -87,6 +128,12 @@ export const DECK_LABELS: Record<DeckType, string> = {
   custom: 'Własna talia',
 };
 
+export const DECK_TYPES = Object.keys(DECK_PRESETS) as DeckType[];
+
+export function isDeckType(value: unknown): value is DeckType {
+  return typeof value === 'string' && (DECK_TYPES as string[]).includes(value);
+}
+
 export const AVATAR_COLORS = [
   '#3B82F6', // Blue
   '#10B981', // Emerald
@@ -99,3 +146,23 @@ export const AVATAR_COLORS = [
   '#F97316', // Orange
   '#6366F1', // Indigo
 ];
+
+/* ---------- Pomocnicy ról: jedno źródło prawdy (P2-1) ---------- */
+
+/** Uczestnicy, którzy MOGĄ oddać głos: głosujący i moderator (ten ostatni opcjonalnie). */
+export function canCastVote(p: Participant): boolean {
+  return p.role !== 'observer';
+}
+
+/**
+ * Uczestnicy, na których czeka automatyczne odkrycie kart.
+ * Moderator jest z tego zbioru wyłączony — może estymować, ale nie musi.
+ */
+export function getRequiredVoters(room: RoomState): Participant[] {
+  return Object.values(room.participants).filter((p) => p.isConnected && p.role === 'voter');
+}
+
+/** Uczestnicy widoczni przy stole: wszyscy poza obserwatorami. */
+export function getTableParticipants(room: RoomState): Participant[] {
+  return Object.values(room.participants).filter(canCastVote);
+}
