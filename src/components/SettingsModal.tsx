@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, Check } from 'lucide-react';
+import { Settings, Check, X } from 'lucide-react';
 import { DeckType, DECK_LABELS, RoomState } from '../types';
 
 interface SettingsModalProps {
@@ -31,7 +31,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-indigo-900/60 border border-indigo-700/60 flex items-center justify-center text-indigo-400 shrink-0">
-              <Settings className="w-4 h-4" />
+              <Settings className="size-5" />
             </div>
             <div>
               <h3 className="font-bold text-base text-white">Ustawienia sesji</h3>
@@ -40,20 +40,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white text-lg p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+            className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer"
             title="Zamknij"
           >
-            ✕
+            <X className="size-5" />
           </button>
         </div>
 
         {/* Settings Options */}
-        <div className="space-y-3.5 text-xs">
+        <div className="space-y-3.5 text-sm">
           {/* Auto Reveal Setting */}
           <label className="flex items-center justify-between p-3.5 bg-slate-950/70 rounded-2xl border border-slate-800/90 hover:border-slate-700 cursor-pointer transition">
             <div className="pr-3">
-              <div className="font-semibold text-white text-xs sm:text-sm">Automatyczne odkrywanie kart</div>
-              <div className="text-slate-400 text-[11px] mt-0.5">
+              <div className="font-semibold text-white text-sm">Automatyczne odkrywanie kart</div>
+              <div className="text-slate-400 text-xs mt-0.5">
                 Odkrywaj natychmiast, gdy wszyscy uprawnieni uczestnicy oddadzą głos.
               </div>
             </div>
@@ -68,8 +68,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* Show Average Setting */}
           <label className="flex items-center justify-between p-3.5 bg-slate-950/70 rounded-2xl border border-slate-800/90 hover:border-slate-700 cursor-pointer transition">
             <div className="pr-3">
-              <div className="font-semibold text-white text-xs sm:text-sm">Pokazuj średnią arytmetyczną</div>
-              <div className="text-slate-400 text-[11px] mt-0.5">
+              <div className="font-semibold text-white text-sm">Pokazuj średnią arytmetyczną</div>
+              <div className="text-slate-400 text-xs mt-0.5">
                 Wyliczaj i wyświetlaj średnią arytmetyczną po odkryciu kart.
               </div>
             </div>
@@ -83,16 +83,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Estimation Scale Selector */}
           <div className="p-3.5 bg-slate-950/70 rounded-2xl border border-slate-800/90">
-            <label className="block text-slate-200 font-semibold text-xs sm:text-sm mb-1.5">
+            <label className="block text-slate-200 font-semibold text-sm mb-1.5">
               Skala estymacji (Talia)
             </label>
-            <p className="text-[11px] text-slate-400 mb-2">
+            <p className="text-xs text-slate-400 mb-2">
               Zmiana skali natychmiast zaktualizuje karty u wszystkich uczestników.
             </p>
             <select
               value={room.deckType}
               onChange={(e) => onChangeDeck(e.target.value as DeckType)}
-              className="w-full bg-slate-900 text-white rounded-xl px-3 py-2.5 border border-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer text-xs sm:text-sm"
+              className="w-full bg-slate-900 text-white rounded-xl px-3 py-2.5 border border-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer text-sm"
             >
               {(Object.keys(DECK_LABELS) as DeckType[]).map((type) => (
                 <option key={type} value={type}>
@@ -107,7 +107,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="mt-6 pt-3 border-t border-slate-800 flex justify-end">
           <button
             onClick={onClose}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold px-5 py-2.5 rounded-xl transition cursor-pointer shadow-lg shadow-indigo-600/20"
+            className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition cursor-pointer shadow-lg shadow-indigo-600/20"
           >
             Gotowe
           </button>

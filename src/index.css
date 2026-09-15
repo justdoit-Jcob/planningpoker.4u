@@ -1,1 +1,28 @@
 @import "tailwindcss";
+
+/*
+ * Skala typografii — jedno źródło rozmiarów dla całej aplikacji.
+ *
+ * Domyślne tokeny Tailwinda są podniesione o stopień, a komponenty używają
+ * wyłącznie tych klas — bez rozmiarów w pikselach (text-[Npx]). Role:
+ *   text-xs   13 px — podpisy, plakietki, etykiety sekcji (najmniejszy rozmiar),
+ *   text-sm   15 px — treść, przyciski, pola formularzy, pozycje menu,
+ *   text-base 17 px — tytuły okien i nagłówki,
+ *   text-lg i większe — liczby, wartości kart, emoji.
+ *
+ * Ikony lucide mają dwa rozmiary:
+ *   size-4 (16 px) — obok tekstu: przyciski z etykietą, plakietki, listy,
+ *   size-5 (20 px) — samodzielnie: przyciski bez etykiety, znaczki w nagłówkach okien.
+ */
+@theme {
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.25rem;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.375rem;
+  --text-base: 1.0625rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.1875rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.3125rem;
+  --text-xl--line-height: 1.75rem;
+}

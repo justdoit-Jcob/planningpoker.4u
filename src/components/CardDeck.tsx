@@ -26,7 +26,7 @@ export const CardDeck: React.FC<CardDeckProps> = ({
   if (userRole === 'observer') {
     return (
       <div className="w-full max-w-4xl mx-auto px-4 py-3 text-center">
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-3 text-xs text-slate-400 inline-flex items-center gap-2">
+        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-3 text-sm text-slate-400 inline-flex items-center gap-2">
           <span>👀 Jesteś w trybie obserwatora. Aby móc głosować, przełącz rolę w prawym górnym rogu.</span>
         </div>
       </div>
@@ -36,7 +36,7 @@ export const CardDeck: React.FC<CardDeckProps> = ({
   return (
     <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
       <div className="text-center mb-0">
-        <span className="text-[10px] sm:text-xs uppercase tracking-widest text-slate-400 font-semibold">
+        <span className="text-xs uppercase tracking-widest text-slate-400 font-semibold">
           {disabled ? 'Karty odkryte lub estymacja wstrzymana' : 'Wybierz swoją kartę'}
         </span>
       </div>
@@ -66,17 +66,17 @@ export const CardDeck: React.FC<CardDeckProps> = ({
               } ${disabled ? 'opacity-40 cursor-not-allowed hover:translate-y-0' : 'active:scale-95'}`}
             >
               {/* Card Corner Index */}
-              <div className="w-full text-left px-1.5 pt-1 text-[9px] sm:text-[10px] opacity-75 font-mono">
+              <div className="w-full text-left px-1.5 pt-1 text-xs opacity-75 font-mono">
                 {card}
               </div>
 
               {/* Card Center Value */}
-              <div className="text-sm sm:text-lg md:text-xl font-black font-mono tracking-tight my-auto">
+              <div className="text-base sm:text-xl md:text-2xl font-black font-mono tracking-tight my-auto">
                 {card}
               </div>
 
               {/* Card Bottom Corner Index (inverted) */}
-              <div className="w-full text-right px-1.5 pb-1 text-[9px] sm:text-[10px] opacity-75 font-mono rotate-180">
+              <div className="w-full text-right px-1.5 pb-1 text-xs opacity-75 font-mono rotate-180">
                 {card}
               </div>
             </button>

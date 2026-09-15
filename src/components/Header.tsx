@@ -118,7 +118,7 @@ export const Header: React.FC<HeaderProps> = ({
       */}
       <div className="max-w-5xl mx-auto w-full px-2 sm:px-4 flex flex-col gap-2.5 sm:gap-3">
         {/* Wiersz 1: identyfikacja pokoju przy lewej krawedzi, sterowanie przy prawej */}
-        <div className="w-full flex items-center justify-between gap-2 sm:gap-3">
+        <div className="w-full flex flex-wrap items-center justify-between gap-2 sm:gap-3">
           {/* Top / Left: Branding & Room Info & Share */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
@@ -131,7 +131,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               ♠
             </button>
-            <div>
+            <div className="min-w-0">
               {editingName ? (
                 <div className="flex items-center gap-1.5" ref={nameEditRef}>
                   <input
@@ -142,12 +142,12 @@ export const Header: React.FC<HeaderProps> = ({
                       if (e.key === 'Enter') handleNameSave();
                       if (e.key === 'Escape') handleNameCancel();
                     }}
-                    className="bg-slate-800 text-xs sm:text-sm font-semibold text-white px-2 py-0.5 rounded border border-indigo-500 focus:outline-none"
+                    className="bg-slate-800 text-sm font-semibold text-white px-2 py-0.5 rounded border border-indigo-500 focus:outline-none"
                     autoFocus
                   />
                   <button
                     onClick={handleNameSave}
-                    className="text-xs bg-indigo-600 hover:bg-indigo-500 px-2 py-1 rounded text-white font-medium"
+                    className="text-sm bg-indigo-600 hover:bg-indigo-500 px-2 py-1 rounded text-white font-medium"
                   >
                     Zapisz
                   </button>
@@ -155,7 +155,7 @@ export const Header: React.FC<HeaderProps> = ({
               ) : (
                 <div className="flex items-center gap-1.5">
                   <h1
-                    className={`text-xs sm:text-sm md:text-base font-bold tracking-tight text-white truncate ${
+                    className={`text-sm md:text-base font-bold tracking-tight text-white truncate ${
                       isModerator ? 'cursor-pointer hover:text-indigo-300' : ''
                     }`}
                     onClick={() => {
@@ -168,12 +168,12 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     {room.name}
                   </h1>
-                  <span className="text-[10px] sm:text-xs font-mono bg-slate-800 text-indigo-300 px-1.5 py-0.5 rounded border border-slate-700">
+                  <span className="shrink-0 whitespace-nowrap text-xs font-mono bg-slate-800 text-indigo-300 px-1.5 py-0.5 rounded border border-slate-700">
                     {room.id.toUpperCase()}
                   </span>
                 </div>
               )}
-              <div className="flex items-center gap-2 text-[11px] text-slate-400">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
                 <button
                   onClick={onOpenParticipants}
                   className="flex items-center gap-1 hover:text-indigo-300 transition"
@@ -193,34 +193,34 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Quick invite button */}
           <button
             onClick={copyInviteLink}
-            className={`min-h-[38px] flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-all shrink-0 cursor-pointer ${
+            className={`min-h-[38px] flex items-center gap-1.5 text-sm font-medium px-2.5 py-1.5 rounded-lg transition-all shrink-0 cursor-pointer ${
               copied
                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
                 : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
             }`}
             title="Kopiuj link z zaproszeniem dla zespołu"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
+            {copied ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4 text-slate-400" />}
             <span className="hidden xs:inline">{copied ? 'Skopiowano link!' : 'Zaproś'}</span>
           </button>
         </div>
 
 
         {/* Right: Controls & History */}
-        <div className="flex items-center justify-end gap-1.5 sm:gap-2 shrink-0">
+        <div className="w-full sm:w-auto sm:ml-auto flex items-center justify-end gap-1.5 sm:gap-2 shrink-0">
           {/* Deck selector dropdown */}
           <div className="relative" ref={deckMenuRef}>
             <button
               onClick={() => setShowDeckMenu(!showDeckMenu)}
-              className="min-h-[38px] flex items-center gap-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded-lg cursor-pointer"
+              className="min-h-[38px] flex items-center gap-1 text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded-lg cursor-pointer"
             >
               <span>{room.deckType === 'modified_fibonacci' ? 'Scrum' : room.deckType}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              <ChevronDown className="size-4 text-slate-400" />
             </button>
 
             {showDeckMenu && (
               <div className="absolute right-0 mt-1.5 w-60 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl py-1 z-50">
-                <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-700">
+                <div className="px-3 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-700">
                   Wybierz skalę estymacji
                 </div>
                 {(Object.keys(DECK_LABELS) as DeckType[]).map((type) => (
@@ -230,12 +230,12 @@ export const Header: React.FC<HeaderProps> = ({
                       onChangeDeck(type);
                       setShowDeckMenu(false);
                     }}
-                    className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-700 ${
+                    className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between hover:bg-slate-700 ${
                       room.deckType === type ? 'text-indigo-300 font-semibold bg-indigo-950/40' : 'text-slate-200'
                     }`}
                   >
                     <span>{DECK_LABELS[type]}</span>
-                    {room.deckType === type && <Check className="w-3.5 h-3.5 text-indigo-400" />}
+                    {room.deckType === type && <Check className="size-4 text-indigo-400" />}
                   </button>
                 ))}
               </div>
@@ -246,7 +246,7 @@ export const Header: React.FC<HeaderProps> = ({
           {me && (
             <button
               onClick={() => onToggleRole(me.role === 'observer' ? 'voter' : 'observer')}
-              className={`min-h-[38px] flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+              className={`min-h-[38px] flex items-center gap-1.5 text-sm font-medium px-2.5 py-1.5 rounded-lg transition-all cursor-pointer ${
                 me.role === 'observer'
                   ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                   : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40'
@@ -259,12 +259,12 @@ export const Header: React.FC<HeaderProps> = ({
             >
               {me.role === 'observer' ? (
                 <>
-                  <Eye className="w-3.5 h-3.5 text-amber-400" />
+                  <Eye className="size-4 text-amber-400" />
                   <span className="hidden sm:inline">Widz</span>
                 </>
               ) : (
                 <>
-                  <Vote className="w-3.5 h-3.5 text-indigo-400" />
+                  <Vote className="size-4 text-indigo-400" />
                   <span className="hidden sm:inline">Głosuję</span>
                 </>
               )}
@@ -274,13 +274,13 @@ export const Header: React.FC<HeaderProps> = ({
           {/* History modal button */}
           <button
             onClick={onOpenHistory}
-            className="min-h-[38px] flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 transition cursor-pointer"
+            className="min-h-[38px] flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold px-2.5 py-1.5 rounded-lg border border-slate-700 transition cursor-pointer"
             title="Historia zakończonych rund"
           >
-            <History className="w-3.5 h-3.5 text-indigo-400" />
+            <History className="size-4 text-indigo-400" />
             <span className="hidden sm:inline">Historia</span>
             {room.history.length > 0 && (
-              <span className="bg-indigo-900 text-indigo-300 text-[10px] px-1.5 py-0.2 rounded-full font-mono">
+              <span className="bg-indigo-900 text-indigo-300 text-xs px-1.5 py-0.2 rounded-full font-mono">
                 {room.history.length}
               </span>
             )}
@@ -292,7 +292,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="min-h-[38px] min-w-[38px] flex items-center justify-center p-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 text-slate-300 hover:text-white cursor-pointer"
             title={soundOn ? 'Dźwięki włączone' : 'Dźwięki wyciszone'}
           >
-            {soundOn ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
+            {soundOn ? <Volume2 className="size-5 text-emerald-400" /> : <VolumeX className="size-5 text-slate-500" />}
           </button>
 
           {/* Room Settings */}
@@ -301,7 +301,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="min-h-[38px] min-w-[38px] flex items-center justify-center p-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 text-slate-400 hover:text-white cursor-pointer"
             title="Ustawienia pokoju"
           >
-            <Settings className="w-4 h-4" />
+            <Settings className="size-5" />
           </button>
         </div>
         </div>
@@ -311,7 +311,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Countdown Timer */}
           <div className="flex items-center bg-slate-950/80 border border-slate-800 rounded-xl px-2.5 py-1 text-slate-200 shadow-inner">
             <span
-              className={`font-mono text-xs sm:text-sm font-semibold tracking-wider mr-2 ${
+              className={`font-mono text-sm sm:text-base font-semibold tracking-wider mr-2 ${
                 room.timer.remaining <= 10 && room.timer.isRunning ? 'text-amber-400 animate-pulse' : 'text-indigo-200'
               }`}
             >
@@ -325,7 +325,7 @@ export const Header: React.FC<HeaderProps> = ({
                   className="min-h-[32px] min-w-[32px] flex items-center justify-center p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white cursor-pointer"
                   title="Wstrzymaj timer"
                 >
-                  <Pause className="w-3.5 h-3.5" />
+                  <Pause className="size-5" />
                 </button>
               ) : (
                 <button
@@ -333,7 +333,7 @@ export const Header: React.FC<HeaderProps> = ({
                   className="min-h-[32px] min-w-[32px] flex items-center justify-center p-1.5 hover:bg-slate-800 rounded text-emerald-400 hover:text-emerald-300 cursor-pointer"
                   title="Uruchom timer"
                 >
-                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <Play className="size-5 fill-current" />
                 </button>
               )}
 
@@ -342,10 +342,10 @@ export const Header: React.FC<HeaderProps> = ({
                 className="min-h-[32px] min-w-[32px] flex items-center justify-center p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white cursor-pointer"
                 title="Zresetuj timer"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
+                <RotateCcw className="size-5" />
               </button>
 
-              <div className="hidden sm:flex items-center gap-1 ml-1 pl-1 border-l border-slate-800 text-[11px] text-slate-400">
+              <div className="hidden sm:flex items-center gap-1 ml-1 pl-1 border-l border-slate-800 text-xs text-slate-400">
                 <button onClick={() => onUpdateTimer('set', 60)} className="hover:text-white px-1 py-0.5">
                   1m
                 </button>

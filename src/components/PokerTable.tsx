@@ -82,7 +82,7 @@ export const PokerTable: React.FC<PokerTableProps> = ({
           {!isRevealed ? (
             <div className="space-y-3 sm:space-y-4">
               <div className="flex flex-col items-center">
-                <span className="text-[11px] sm:text-xs uppercase tracking-widest text-slate-400 font-semibold mb-1">
+                <span className="text-xs uppercase tracking-widest text-slate-400 font-semibold mb-1">
                   Status głosowania
                 </span>
                 <div className="flex items-center gap-2">
@@ -107,29 +107,29 @@ export const PokerTable: React.FC<PokerTableProps> = ({
                 <button
                   onClick={onReveal}
                   disabled={votesCount === 0}
-                  className={`min-h-[44px] px-5 sm:px-6 py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow-xl flex items-center justify-center gap-2 transition transform active:scale-95 cursor-pointer ${
+                  className={`min-h-[44px] px-5 sm:px-6 py-2.5 rounded-xl font-bold text-sm shadow-xl flex items-center justify-center gap-2 transition transform active:scale-95 cursor-pointer ${
                     allVoted
                       ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white ring-4 ring-emerald-500/20 animate-pulse'
                       : 'bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 disabled:hover:bg-indigo-600 disabled:cursor-not-allowed'
                   }`}
                 >
-                  <Eye className="w-4 h-4" />
+                  <Eye className="size-4" />
                   <span>Odkryj karty</span>
                 </button>
 
                 <button
                   onClick={onReset}
-                  className="min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800/80 transition flex items-center justify-center gap-1.5 border border-slate-800 cursor-pointer"
+                  className="min-h-[44px] px-3.5 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800/80 transition flex items-center justify-center gap-1.5 border border-slate-800 cursor-pointer"
                   title="Wyczyść głosy i zresetuj stół"
                 >
-                  <RotateCcw className="w-3.5 h-3.5" />
+                  <RotateCcw className="size-4" />
                   <span>Resetuj</span>
                 </button>
               </div>
 
               {totalEligibleVoters === 0 && (
                 <div className="text-xs text-amber-400/90 bg-amber-950/40 border border-amber-800/50 px-3 py-1.5 rounded-lg flex items-center gap-1.5 justify-center">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <AlertTriangle className="size-4 shrink-0" />
                   <span>Brak aktywnych głosujących. Zaproś zespół lub zmień rolę na głosującego!</span>
                 </div>
               )}
@@ -142,12 +142,12 @@ export const PokerTable: React.FC<PokerTableProps> = ({
                 <div className="flex items-center justify-center gap-2 mb-2">
                   {currentStats.consensus >= 80 ? (
                     <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300 bg-emerald-950/80 border border-emerald-800/80 px-2.5 py-1 rounded-full">
-                      <Trophy className="w-3.5 h-3.5 text-emerald-400" />
+                      <Trophy className="size-4 text-emerald-400" />
                       Zgoda zespołu: {currentStats.consensus}%
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-300 bg-amber-950/80 border border-amber-800/80 px-2.5 py-1 rounded-full">
-                      <BarChart2 className="w-3.5 h-3.5 text-amber-400" />
+                      <BarChart2 className="size-4 text-amber-400" />
                       Zróżnicowane głosy (Zgoda: {currentStats.consensus}%)
                     </span>
                   )}
@@ -156,19 +156,19 @@ export const PokerTable: React.FC<PokerTableProps> = ({
                 {/* Primary Stats Grid */}
                 <div className="grid grid-cols-3 gap-2 py-2 border-y border-slate-800/80 text-center">
                   <div>
-                    <div className="text-[10px] text-slate-400 uppercase font-semibold">Średnia</div>
+                    <div className="text-xs text-slate-400 uppercase font-semibold">Średnia</div>
                     <div className="text-base sm:text-lg font-extrabold text-white font-mono">
                       {currentStats.average !== null ? currentStats.average : '-'}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] text-slate-400 uppercase font-semibold">Mediana</div>
+                    <div className="text-xs text-slate-400 uppercase font-semibold">Mediana</div>
                     <div className="text-base sm:text-lg font-extrabold text-indigo-400 font-mono">
                       {currentStats.median !== null ? currentStats.median : '-'}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] text-slate-400 uppercase font-semibold">Najczęstsza</div>
+                    <div className="text-xs text-slate-400 uppercase font-semibold">Najczęstsza</div>
                     <div className="text-base sm:text-lg font-extrabold text-emerald-400 font-mono">
                       {currentStats.mode.join(', ') || '-'}
                     </div>
@@ -184,7 +184,7 @@ export const PokerTable: React.FC<PokerTableProps> = ({
                         className="text-xs bg-slate-800/90 text-slate-200 border border-slate-700 px-2 py-0.5 rounded-lg flex items-center gap-1"
                       >
                         <span className="font-bold text-indigo-300">{card}</span>
-                        <span className="text-[10px] text-slate-400">×{count}</span>
+                        <span className="text-xs text-slate-400">×{count}</span>
                       </span>
                     ))}
                   </div>
@@ -195,9 +195,9 @@ export const PokerTable: React.FC<PokerTableProps> = ({
               <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-1">
                 <button
                   onClick={onReset}
-                  className="w-full sm:w-auto min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white shadow-lg flex items-center justify-center gap-2 cursor-pointer transition transform active:scale-95"
+                  className="w-full sm:w-auto min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white shadow-lg flex items-center justify-center gap-2 cursor-pointer transition transform active:scale-95"
                 >
-                  <RotateCcw className="w-4 h-4" />
+                  <RotateCcw className="size-4" />
                   <span>Nowa runda (Reset)</span>
                 </button>
 
@@ -205,7 +205,7 @@ export const PokerTable: React.FC<PokerTableProps> = ({
                 {selectedScore && (
                   <button
                     onClick={handleFinishRound}
-                    className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 transition flex items-center justify-center gap-1.5 cursor-pointer"
                     title="Zapisz ten wynik w historii i rozpocznij kolejną rundę"
                   >
                     <span>Zapisz wynik ({selectedScore}) i dalej</span>
@@ -218,7 +218,7 @@ export const PokerTable: React.FC<PokerTableProps> = ({
 
         {/* Circular / Elliptical Participant Cards Placement */}
         <div className="w-full mt-6 pt-4 border-t border-slate-800/40">
-          <div className="text-[11px] text-slate-400 font-semibold text-center uppercase tracking-wider mb-3">
+          <div className="text-xs text-slate-400 font-semibold text-center uppercase tracking-wider mb-3">
             Uczestnicy ({participants.length})
           </div>
 
@@ -238,7 +238,7 @@ export const PokerTable: React.FC<PokerTableProps> = ({
                 >
                   {/* Card Element */}
                   <div
-                    className={`w-12 h-16 sm:w-14 sm:h-20 rounded-xl flex items-center justify-center font-bold shadow-lg transition-all duration-300 relative ${
+                    className={`w-14 h-20 sm:w-16 sm:h-24 rounded-xl flex items-center justify-center font-bold shadow-lg transition-all duration-300 relative ${
                       isRevealed
                         ? 'bg-gradient-to-b from-indigo-600 to-indigo-800 text-white border-2 border-indigo-400/80 scale-105'
                         : hasVoted
@@ -253,7 +253,7 @@ export const PokerTable: React.FC<PokerTableProps> = ({
                     ) : hasVoted ? (
                       <div className="flex flex-col items-center">
                         <span className="text-xs text-emerald-200">✓</span>
-                        <span className="text-[9px] font-mono text-emerald-300/80 uppercase">Gotowy</span>
+                        <span className="text-xs font-mono text-emerald-300/80 uppercase">Gotowy</span>
                       </div>
                     ) : (
                       <span className="text-xs text-slate-500">...</span>
@@ -261,7 +261,7 @@ export const PokerTable: React.FC<PokerTableProps> = ({
 
                     {/* Self Indicator Marker */}
                     {isSelf && (
-                      <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-indigo-500 rounded-full ring-2 ring-slate-900 flex items-center justify-center text-[8px] font-bold text-white">
+                      <span className="absolute -top-2 -right-2 size-5 bg-indigo-500 rounded-full ring-2 ring-slate-900 flex items-center justify-center text-xs font-bold text-white">
                         ★
                       </span>
                     )}
@@ -274,7 +274,7 @@ export const PokerTable: React.FC<PokerTableProps> = ({
                       style={{ backgroundColor: p.avatarColor }}
                     />
                     <span
-                      className={`text-[11px] sm:text-xs truncate font-medium ${
+                      className={`text-xs sm:text-sm truncate font-medium ${
                         isSelf ? 'text-indigo-300 font-bold' : 'text-slate-300'
                       }`}
                     >
@@ -289,11 +289,11 @@ export const PokerTable: React.FC<PokerTableProps> = ({
           {/* Observers row if any */}
           {observers.length > 0 && (
             <div className="mt-4 pt-3 border-t border-slate-800/40 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-400">
-              <span className="text-[10px] uppercase font-semibold text-slate-500 mr-1">Obserwatorzy:</span>
+              <span className="text-xs uppercase font-semibold text-slate-500 mr-1">Obserwatorzy:</span>
               {observers.map((o) => (
                 <span
                   key={o.id}
-                  className="bg-slate-800/60 px-2 py-0.5 rounded-lg border border-slate-700/60 flex items-center gap-1 text-[11px]"
+                  className="bg-slate-800/60 px-2 py-0.5 rounded-lg border border-slate-700/60 flex items-center gap-1 text-xs"
                 >
                   <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: o.avatarColor }} />
                   <span>{o.name}</span>

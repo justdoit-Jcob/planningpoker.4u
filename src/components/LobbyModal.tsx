@@ -69,12 +69,12 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({ initialRoomId, onJoin })
           <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
             Planning Poker Live
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-sm text-slate-400 mt-1">
             Zwinne szacowanie w czasie rzeczywistym dla zdalnych zespołów IT
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        <form onSubmit={handleSubmit} className="space-y-4 text-sm">
           {/* Room Choice Tabs */}
           <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
             <button
@@ -178,10 +178,10 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({ initialRoomId, onJoin })
                 }`}
               >
                 <div className="flex items-center gap-1.5 font-semibold text-white mb-1">
-                  <Vote className="w-4 h-4 text-indigo-400" />
+                  <Vote className="size-4 text-indigo-400" />
                   <span>Głosujący</span>
                 </div>
-                <p className="text-[11px] text-slate-400">Developer, QA, Inżynier biorący udział w estymacji</p>
+                <p className="text-xs text-slate-400">Developer, QA, Inżynier biorący udział w estymacji</p>
               </button>
 
               <button
@@ -194,10 +194,10 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({ initialRoomId, onJoin })
                 }`}
               >
                 <div className="flex items-center gap-1.5 font-semibold text-white mb-1">
-                  <Eye className="w-4 h-4 text-amber-400" />
+                  <Eye className="size-4 text-amber-400" />
                   <span>Obserwator</span>
                 </div>
-                <p className="text-[11px] text-slate-400">Product Owner, Scrum Master, Gość (nie głosuje)</p>
+                <p className="text-xs text-slate-400">Product Owner, Scrum Master, Gość (nie głosuje)</p>
               </button>
             </div>
           </div>
@@ -209,11 +209,11 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({ initialRoomId, onJoin })
             className="w-full mt-4 py-3 bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 cursor-pointer transition transform active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span>Wejdź do pokoju estymacji</span>
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="size-4" />
           </button>
         </form>
 
-        <div className="mt-6 pt-4 border-t border-slate-800/80 text-center text-[11px] text-slate-500">
+        <div className="mt-6 pt-4 border-t border-slate-800/80 text-center text-xs text-slate-500">
           Wspiera skale: Fibonacci, Scrum Standard, T-Shirt, Potęgi 2 oraz Sekwencyjną.
         </div>
       </div>

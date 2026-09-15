@@ -406,7 +406,7 @@ export default function App() {
 
           {/* Connection banner if offline */}
           {!isConnected && (
-            <div className="bg-amber-600/90 text-white text-xs font-semibold px-4 py-1.5 text-center shadow">
+            <div className="bg-amber-600/90 text-white text-sm font-semibold px-4 py-1.5 text-center shadow">
               Utracono połączenie z serwerem. Ponawianie próby łączenia...
             </div>
           )}

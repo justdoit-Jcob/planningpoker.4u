@@ -55,14 +55,14 @@ export const TopicBar: React.FC<TopicBarProps> = ({ topic, round, onUpdateTopic 
                   if (e.key === 'Escape') handleCancel();
                 }}
                 placeholder="Wpisz temat, nazwę zadania lub link (opcjonalnie)..."
-                className="w-full bg-slate-950 text-white text-xs sm:text-sm font-medium px-3 py-1.5 rounded-lg border border-indigo-500 focus:outline-none placeholder-slate-500"
+                className="w-full bg-slate-950 text-white text-sm font-medium px-3 py-1.5 rounded-lg border border-indigo-500 focus:outline-none placeholder-slate-500"
                 autoFocus
               />
               <button
                 onClick={handleSave}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 shrink-0 cursor-pointer"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 shrink-0 cursor-pointer"
               >
-                <Check className="w-3.5 h-3.5" />
+                <Check className="size-4" />
                 <span>Zapisz</span>
               </button>
             </div>
@@ -72,11 +72,11 @@ export const TopicBar: React.FC<TopicBarProps> = ({ topic, round, onUpdateTopic 
               className="group flex items-center gap-2 cursor-pointer py-1 px-2 rounded-lg hover:bg-slate-800/60 transition min-w-0"
               title="Kliknij, aby zmienić temat lub nazwę estymowanego zadania"
             >
-              <MessageSquare className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-              <span className="text-xs sm:text-sm font-semibold text-slate-200 truncate group-hover:text-white">
+              <MessageSquare className="size-4 text-indigo-400 shrink-0" />
+              <span className="text-sm sm:text-base font-semibold text-slate-200 truncate group-hover:text-white">
                 {topic ? topic : <span className="text-slate-500 font-normal italic">Kliknij tutaj, aby wpisać temat zadania (opcjonalnie)</span>}
               </span>
-              <Edit2 className="w-3 h-3 text-slate-500 opacity-0 group-hover:opacity-100 transition shrink-0 ml-1" />
+              <Edit2 className="size-4text-slate-500 opacity-0 group-hover:opacity-100 transition shrink-0 ml-1" />
             </div>
           )}
         </div>
