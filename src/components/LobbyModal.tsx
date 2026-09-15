@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Vote, Eye, ArrowRight } from 'lucide-react';
 import { AVATAR_COLORS, SelfAssignableRole } from '../types';
+import { createRoomCode, createRoomId, ROOM_ID_PREFIX } from '../utils/roomId';
 
 interface LobbyModalProps {
   initialRoomId: string;
@@ -15,7 +16,9 @@ interface LobbyModalProps {
 
 export const LobbyModal: React.FC<LobbyModalProps> = ({ initialRoomId, onJoin }) => {
   const [name, setName] = useState(() => localStorage.getItem('poker_username') || '');
-  const [roomId, setRoomId] = useState(() => initialRoomId || 'SPRINT-42');
+  // Bez ?room= w adresie każde wejście dostaje świeży identyfikator. Stała
+  // wartość wrzucałaby wszystkich tworzących pokój do tego samego stołu.
+  const [roomId, setRoomId] = useState(() => initialRoomId || createRoomId());
   const [roomName, setRoomName] = useState('Planowanie Sprintu #42');
   const [role, setRole] = useState<SelfAssignableRole>('voter');
   const [avatarColor, setAvatarColor] = useState(
@@ -37,7 +40,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({ initialRoomId, onJoin })
     localStorage.setItem('poker_username', name.trim());
     localStorage.setItem('poker_avatar', avatarColor);
 
-    const targetRoomId = (roomId.trim() || 'SPRINT-42').toUpperCase();
+    const targetRoomId = (roomId.trim() || createRoomId()).toUpperCase();
 
     onJoin({
       roomId: targetRoomId,
@@ -49,8 +52,8 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({ initialRoomId, onJoin })
   };
 
   const generateNewRoomId = () => {
-    const code = Math.random().toString(36).substring(2, 6).toUpperCase();
-    setRoomId(`ROOM-${code}`);
+    const code = createRoomCode();
+    setRoomId(`${ROOM_ID_PREFIX}${code}`);
     setRoomName(`Planning Sprint #${code}`);
     setIsCreatingNew(true);
   };
@@ -78,7 +81,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({ initialRoomId, onJoin })
               type="button"
               onClick={() => {
                 setIsCreatingNew(false);
-                if (!roomId) setRoomId('SPRINT-42');
+                if (!roomId) setRoomId(createRoomId());
               }}
               className={`flex-1 py-2 rounded-lg font-semibold transition cursor-pointer ${
                 !isCreatingNew ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'

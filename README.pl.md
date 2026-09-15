@@ -243,7 +243,7 @@ Stan pokoi żyje w pamięci procesu serwera, więc **uruchamiaj jedną replikę*
 bun run test
 ```
 
-Uruchamia zestaw `node:test` przez `tsx`. Testy pokrywają `src/utils/stats.ts`, czystą funkcję stojącą za każdym podsumowaniem rundy: mediana parzysta i nieparzysta, talie nieliczbowe, obsługa wstrzymań, próg większości dla kawy oraz reguły określające, kto liczy się do rundy.
+Uruchamia zestaw `node:test` przez `tsx`. Testy pokrywają `src/utils/stats.ts`, czystą funkcję stojącą za każdym podsumowaniem rundy: mediana parzysta i nieparzysta, talie nieliczbowe, obsługa wstrzymań, próg większości dla kawy oraz reguły określające, kto liczy się do rundy. Osobny zestaw sprawdza generator identyfikatorów pokoi (`src/utils/roomId.ts`): format `ROOM-XXXX`, alfabet i unikalność.
 
 ---
 
@@ -266,6 +266,8 @@ Uruchamia zestaw `node:test` przez `tsx`. Testy pokrywają `src/utils/stats.ts`,
 │   │   ├── audio.ts           # Synteza dźwięku przez Web Audio API
 │   │   ├── celebrate.ts       # Konfetti zgodności i konfetti z kawą
 │   │   ├── polyfill.ts        # Zgodność ze środowiskiem przeglądarki
+│   │   ├── roomId.ts          # Generator identyfikatorów pokoi ROOM-XXXX
+│   │   ├── roomId.test.ts     # Testy generatora identyfikatorów
 │   │   ├── stats.ts           # Średnia, mediana, konsensus, wstrzymania
 │   │   └── stats.test.ts      # Testy jednostkowe silnika statystyk
 │   ├── protocol.ts            # Schemat wiadomości WebSocket, walidacja, limity
@@ -286,7 +288,7 @@ Uruchamia zestaw `node:test` przez `tsx`. Testy pokrywają `src/utils/stats.ts`,
 ## 💡 Jak działa aplikacja?
 
 1. **Dołączenie lub utworzenie pokoju**:
-   - Podajesz imię, wybierasz kolor awatara, rolę (**Głosujący** lub **Obserwator**) oraz identyfikator pokoju (np. `SPRINT-42`).
+   - Podajesz imię, wybierasz kolor awatara i rolę (**Głosujący** lub **Obserwator**). Nowy pokój dostaje przy każdym wejściu unikalny identyfikator w formacie `ROOM-XXXX`; do istniejącego dołączasz, wpisując identyfikator od zespołu.
    - Udostępnienie linku w formacie `?room=KOD_POKOJU` kieruje współpracowników do tego samego stołu. Pierwsza osoba zostaje moderatorem.
 2. **Wybór tematu i kart**:
    - Dowolna osoba może wpisać tytuł estymowanego zadania.

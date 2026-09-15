@@ -253,7 +253,7 @@ Room state lives in the server process memory, so **run a single replica**. A se
 bun run test
 ```
 
-Runs the `node:test` suite through `tsx`. Coverage focuses on `src/utils/stats.ts`, the pure function behind every round summary: odd and even medians, non-numeric decks, abstention handling, the coffee-majority threshold, and the rules for which participants count toward a round.
+Runs the `node:test` suite through `tsx`. Coverage focuses on `src/utils/stats.ts`, the pure function behind every round summary: odd and even medians, non-numeric decks, abstention handling, the coffee-majority threshold, and the rules for which participants count toward a round. A separate suite checks the room ID generator (`src/utils/roomId.ts`): the `ROOM-XXXX` format, its alphabet, and uniqueness.
 
 ---
 
@@ -276,6 +276,8 @@ Runs the `node:test` suite through `tsx`. Coverage focuses on `src/utils/stats.t
 │   │   ├── audio.ts           # Web Audio API sound synthesis
 │   │   ├── celebrate.ts       # Consensus and coffee-break confetti
 │   │   ├── polyfill.ts        # Browser environment compatibility polyfills
+│   │   ├── roomId.ts          # ROOM-XXXX room ID generator
+│   │   ├── roomId.test.ts     # Unit tests for the room ID generator
 │   │   ├── stats.ts           # Median, average, consensus and abstention calculations
 │   │   └── stats.test.ts      # Unit tests for the statistics engine
 │   ├── protocol.ts            # WebSocket message schema, runtime validation, limits
@@ -296,7 +298,7 @@ Runs the `node:test` suite through `tsx`. Coverage focuses on `src/utils/stats.t
 ## 💡 How It Works
 
 1. **Join or Create a Room**:
-   - Enter your name, pick a role (**Voter** or **Observer**), choose an avatar color, and set a room code (e.g. `SPRINT-42`).
+   - Enter your name, pick a role (**Voter** or **Observer**) and choose an avatar color. Every visit generates a fresh room ID in the `ROOM-XXXX` format for a new room; to join an existing one, type the ID your team shared.
    - Share the URL (`?room=SPRINT-42`) so colleagues land at the same table. The first person in becomes the moderator.
 2. **Vote on Stories**:
    - Anyone can set the current topic or story title.
