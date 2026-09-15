@@ -34,7 +34,7 @@ A modern, fast, and responsive real-time Planning Poker (Scrum Poker) web applic
 - 🃏 **Interactive Poker Table**:
   - Card backings stay concealed during active voting.
   - Synchronized reveal with Web Audio API sound effects, confetti on full team consensus, and a **coffee confetti** shower when the majority votes ☕ — the team is asking for a break, not an estimate.
-  - Instant round metrics: **Arithmetic Average**, **Median**, **Consensus Rate (%)**, **Vote Distribution**, and a separate **abstention** count.
+  - Instant round metrics: **Arithmetic Average**, **Median**, **Consensus Rate (%)**, and a separate **abstention** count.
 - 🙋 **Abstentions Kept Out of the Maths**:
   - `?` and `☕` are not estimates. They never enter the average, median, mode, or consensus rate — a room where everyone picks `?` correctly reports 0% consensus, not 100%.
 - 👥 **Team Roles & Permissions**:
@@ -274,6 +274,7 @@ Runs the `node:test` suite through `tsx`. Coverage focuses on `src/utils/stats.t
 │   │   └── useDismissOnOutside.ts # Close menus & inline editors on outside click / Escape
 │   ├── utils/
 │   │   ├── audio.ts           # Web Audio API sound synthesis
+│   │   ├── cardValue.ts       # Shared card value sizing (deck & table)
 │   │   ├── celebrate.ts       # Consensus and coffee-break confetti
 │   │   ├── polyfill.ts        # Browser environment compatibility polyfills
 │   │   ├── roomId.ts          # ROOM-XXXX room ID generator
@@ -305,7 +306,8 @@ Runs the `node:test` suite through `tsx`. Coverage focuses on `src/utils/stats.t
    - Pick a card from the bottom deck. Other people see only that you are ready — never which card you chose.
 3. **Reveal**:
    - Anyone at the table clicks **Reveal Cards**, or auto-reveal fires once every voter has chosen.
-   - The team sees the average, median, agreement percentage and distribution, with confetti on full consensus — or coffee confetti if the room mostly voted ☕.
+   - Cards can still be changed after the reveal — the statistics and the suggested score update live, and changed cards turn amber at the table.
+   - The team sees the average, median and agreement percentage, with confetti on full consensus — or coffee confetti if the room mostly voted ☕.
 4. **Next Round**:
    - **Save Score & Next** archives the round to History and advances the counter; **Reset** just clears the table.
    - Either way, participants who have left the session are dropped from the table.
@@ -353,7 +355,7 @@ Pełna dokumentacja po polsku znajduje się w pliku [README.pl.md](./README.pl.m
 - 🃏 **Interaktywny stół pokerowy**:
   - Ukryte rewersy kart w trakcie trwania rundy.
   - Synchroniczne odkrycie kart z efektami Web Audio API, konfetti przy pełnej zgodzie zespołu oraz **konfetti z kawą**, gdy większość wybierze ☕ — zespół prosi wtedy o przerwę, nie o estymatę.
-  - Statystyki rundy: **średnia**, **mediana**, **stopień zgodności (%)**, **rozkład głosów** i osobno liczone **wstrzymania**.
+  - Statystyki rundy: **średnia**, **mediana**, **stopień zgodności (%)** i osobno liczone **wstrzymania**.
 - 🙋 **Wstrzymania poza matematyką**:
   - `?` i `☕` nie są estymatą — nie wchodzą do średniej, mediany, mody ani konsensusu. Pokój, w którym wszyscy wybrali `?`, pokazuje 0% zgody, a nie 100%.
 - 👥 **Role w zespole**:

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Eye, RotateCcw, BarChart2, Trophy, AlertTriangle } from 'lucide-react';
 import { Participant, RoomState, VoteStats, canCastVote } from '../types';
 import { calculateVoteStats, isCoffeeMajority, isFullConsensus } from '../utils/stats';
+import { cardValueTextClass } from '../utils/cardValue';
 import { soundEffects } from '../utils/audio';
 import { fireCoffeeConfetti, fireConsensusConfetti } from '../utils/celebrate';
 
@@ -38,36 +39,43 @@ export const PokerTable: React.FC<PokerTableProps> = ({
 
   const currentStats: VoteStats = calculateVoteStats(room.participants);
 
-  const [selectedScore, setSelectedScore] = useState<string>('');
-
   const coffeeBreak = isCoffeeMajority(currentStats);
   const fullConsensus = isFullConsensus(currentStats);
 
+  // Po odkryciu kartę wolno zmienić. Zmieniona (albo oddana dopiero po
+  // odkryciu) różni się od tej zapamiętanej przez serwer w chwili odkrycia.
+  const isChangedAfterReveal = (p: Participant) => isRevealed && p.vote !== p.revealedVote;
+
+  // Proponowany wynik wynika wprost ze statystyk, więc przelicza się razem
+  // z nimi, gdy ktoś zmieni kartę po odkryciu.
+  const suggestedScore = !isRevealed
+    ? ''
+    : currentStats.mode.length > 0
+    ? currentStats.mode[0]
+    : currentStats.median !== null
+    ? String(currentStats.median)
+    : '';
+
+  // Dźwięk odkrycia tylko w chwili odkrycia — nie przy każdej zmianie karty.
   React.useEffect(() => {
-    if (isRevealed) {
-      soundEffects.playReveal();
+    if (isRevealed) soundEffects.playReveal();
+  }, [isRevealed]);
 
-      if (coffeeBreak) {
-        // Zespół prosi o przerwę zamiast estymaty (P2-2).
-        fireCoffeeConfetti();
-      } else if (fullConsensus) {
-        soundEffects.playConsensus();
-        fireConsensusConfetti();
-      }
-
-      if (currentStats.mode.length > 0) {
-        setSelectedScore(currentStats.mode[0]);
-      } else if (currentStats.median !== null) {
-        setSelectedScore(String(currentStats.median));
-      }
-    } else {
-      setSelectedScore('');
+  // Świętowanie także wtedy, gdy zgoda pojawi się dopiero po zmianie karty.
+  React.useEffect(() => {
+    if (!isRevealed) return;
+    if (coffeeBreak) {
+      // Zespół prosi o przerwę zamiast estymaty (P2-2).
+      fireCoffeeConfetti();
+    } else if (fullConsensus) {
+      soundEffects.playConsensus();
+      fireConsensusConfetti();
     }
   }, [isRevealed, coffeeBreak, fullConsensus]);
 
   const handleFinishRound = () => {
-    if (!selectedScore) return;
-    onCompleteRound(selectedScore);
+    if (!suggestedScore) return;
+    onCompleteRound(suggestedScore);
   };
 
   return (
@@ -78,7 +86,7 @@ export const PokerTable: React.FC<PokerTableProps> = ({
         <div className="absolute inset-2 sm:inset-4 rounded-[30px] sm:rounded-[46px] border border-indigo-500/10 pointer-events-none bg-radial from-indigo-950/20 via-transparent to-transparent"></div>
 
         {/* Center Felt / Action Console */}
-        <div className="relative z-10 flex flex-col items-center justify-center text-center max-w-md w-full px-2">
+        <div className="relative z-10 flex flex-col items-center justify-center text-center max-w-4xl w-full px-2">
           {!isRevealed ? (
             <div className="space-y-3 sm:space-y-4">
               <div className="flex flex-col items-center">
@@ -137,58 +145,34 @@ export const PokerTable: React.FC<PokerTableProps> = ({
           ) : (
             /* Results Console */
             <div className="space-y-3 sm:space-y-4 w-full animate-fadeIn">
-              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 sm:p-4 shadow-xl backdrop-blur-md">
-                {/* Consensus Pill */}
-                <div className="flex items-center justify-center gap-2 mb-2">
+              <div className="w-fit max-w-full mx-auto bg-slate-900/90 border border-slate-800 rounded-2xl p-3 sm:p-4 shadow-xl backdrop-blur-md">
+                {/* Zgoda i statystyki w jednym wierszu — zawija się dopiero, gdy brakuje miejsca */}
+                <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
                   {currentStats.consensus >= 80 ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300 bg-emerald-950/80 border border-emerald-800/80 px-2.5 py-1 rounded-full">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300 bg-emerald-950/80 border border-emerald-800/80 px-2.5 py-1 rounded-full whitespace-nowrap">
                       <Trophy className="size-4 text-emerald-400" />
                       Zgoda zespołu: {currentStats.consensus}%
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-300 bg-amber-950/80 border border-amber-800/80 px-2.5 py-1 rounded-full">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-300 bg-amber-950/80 border border-amber-800/80 px-2.5 py-1 rounded-full whitespace-nowrap">
                       <BarChart2 className="size-4 text-amber-400" />
                       Zróżnicowane głosy (Zgoda: {currentStats.consensus}%)
                     </span>
                   )}
-                </div>
 
-                {/* Primary Stats Grid */}
-                <div className="grid grid-cols-3 gap-2 py-2 border-y border-slate-800/80 text-center">
-                  <div>
-                    <div className="text-xs text-slate-400 uppercase font-semibold">Średnia</div>
-                    <div className="text-base sm:text-lg font-extrabold text-white font-mono">
+                  <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
+                    <span className="text-xs text-slate-400 uppercase font-semibold">Średnia</span>
+                    <span className="text-base sm:text-lg font-extrabold text-white font-mono">
                       {currentStats.average !== null ? currentStats.average : '-'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400 uppercase font-semibold">Mediana</div>
-                    <div className="text-base sm:text-lg font-extrabold text-indigo-400 font-mono">
-                      {currentStats.median !== null ? currentStats.median : '-'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400 uppercase font-semibold">Najczęstsza</div>
-                    <div className="text-base sm:text-lg font-extrabold text-emerald-400 font-mono">
-                      {currentStats.mode.join(', ') || '-'}
-                    </div>
-                  </div>
-                </div>
+                    </span>
+                  </span>
 
-                {/* Vote Distribution Chips */}
-                {Object.keys(currentStats.distribution).length > 0 && (
-                  <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
-                    {Object.entries(currentStats.distribution).map(([card, count]) => (
-                      <span
-                        key={card}
-                        className="text-xs bg-slate-800/90 text-slate-200 border border-slate-700 px-2 py-0.5 rounded-lg flex items-center gap-1"
-                      >
-                        <span className="font-bold text-indigo-300">{card}</span>
-                        <span className="text-xs text-slate-400">×{count}</span>
-                      </span>
-                    ))}
-                  </div>
-                )}
+                  <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
+                    <span className="text-xs text-slate-400 uppercase font-semibold">Mediana</span>
+                    <span className="text-base sm:text-lg font-extrabold text-indigo-400 font-mono">
+                      {currentStats.median !== null ? currentStats.median : '-'}
+                    </span>
+                  </span>                </div>
               </div>
 
               {/* End of round controls: Reset or Next Round */}
@@ -202,13 +186,13 @@ export const PokerTable: React.FC<PokerTableProps> = ({
                 </button>
 
                 {/* Save to history option */}
-                {selectedScore && (
+                {suggestedScore && (
                   <button
                     onClick={handleFinishRound}
                     className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 transition flex items-center justify-center gap-1.5 cursor-pointer"
                     title="Zapisz ten wynik w historii i rozpocznij kolejną rundę"
                   >
-                    <span>Zapisz wynik ({selectedScore}) i dalej</span>
+                    <span>Zapisz wynik ({suggestedScore}) i dalej</span>
                   </button>
                 )}
               </div>
@@ -228,6 +212,7 @@ export const PokerTable: React.FC<PokerTableProps> = ({
               const isSelf = p.id === selfId;
               // Przed odkryciem serwer nie przysyła cudzych kart — tylko sam fakt głosu (P0-1).
               const hasVoted = p.hasVoted;
+              const changed = isChangedAfterReveal(p);
 
               return (
                 <div
@@ -238,8 +223,17 @@ export const PokerTable: React.FC<PokerTableProps> = ({
                 >
                   {/* Card Element */}
                   <div
+                    title={
+                      changed
+                        ? p.revealedVote !== null
+                          ? `Zmieniono po odkryciu (było: ${p.revealedVote})`
+                          : 'Głos oddany po odkryciu'
+                        : undefined
+                    }
                     className={`w-14 h-20 sm:w-16 sm:h-24 rounded-xl flex items-center justify-center font-bold shadow-lg transition-all duration-300 relative ${
-                      isRevealed
+                      changed
+                        ? 'bg-gradient-to-b from-amber-500 to-orange-600 text-white border-2 border-amber-300 scale-105 shadow-amber-500/30'
+                        : isRevealed
                         ? 'bg-gradient-to-b from-indigo-600 to-indigo-800 text-white border-2 border-indigo-400/80 scale-105'
                         : hasVoted
                         ? 'bg-gradient-to-b from-emerald-600 to-teal-700 text-white border-2 border-emerald-400 shadow-emerald-500/20'
@@ -247,7 +241,7 @@ export const PokerTable: React.FC<PokerTableProps> = ({
                     }`}
                   >
                     {isRevealed ? (
-                      <span className="text-base sm:text-xl font-black font-mono">
+                      <span className={`${cardValueTextClass(p.vote ?? '—')} font-black font-mono tracking-tight`}>
                         {p.vote !== null ? p.vote : '—'}
                       </span>
                     ) : hasVoted ? (

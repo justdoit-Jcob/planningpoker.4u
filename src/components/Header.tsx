@@ -168,9 +168,6 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     {room.name}
                   </h1>
-                  <span className="shrink-0 whitespace-nowrap text-xs font-mono bg-slate-800 text-indigo-300 px-1.5 py-0.5 rounded border border-slate-700">
-                    {room.id.toUpperCase()}
-                  </span>
                 </div>
               )}
               <div className="flex items-center gap-2 text-xs text-slate-400">
@@ -201,7 +198,7 @@ export const Header: React.FC<HeaderProps> = ({
             title="Kopiuj link z zaproszeniem dla zespołu"
           >
             {copied ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4 text-slate-400" />}
-            <span className="hidden xs:inline">{copied ? 'Skopiowano link!' : 'Zaproś'}</span>
+            <span className="hidden sm:inline">{copied ? 'Link copied!' : 'Copy Invite Link'}</span>
           </button>
         </div>
 

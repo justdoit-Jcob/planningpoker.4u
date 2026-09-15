@@ -14,12 +14,19 @@ interface LobbyModalProps {
   }) => void;
 }
 
+/** Nowy pokój: identyfikator i domyślna nazwa sesji z tego samego kodu. */
+function createRoomDraft(): { id: string; name: string } {
+  const code = createRoomCode();
+  return { id: `${ROOM_ID_PREFIX}${code}`, name: `Planning Sprint #${code}` };
+}
+
 export const LobbyModal: React.FC<LobbyModalProps> = ({ initialRoomId, onJoin }) => {
   const [name, setName] = useState(() => localStorage.getItem('poker_username') || '');
-  // Bez ?room= w adresie każde wejście dostaje świeży identyfikator. Stała
-  // wartość wrzucałaby wszystkich tworzących pokój do tego samego stołu.
-  const [roomId, setRoomId] = useState(() => initialRoomId || createRoomId());
-  const [roomName, setRoomName] = useState('Planowanie Sprintu #42');
+  // Bez ?room= w adresie każde wejście dostaje świeży kod — ten sam w identyfikatorze
+  // i w nazwie sesji. Stała wartość wrzucałaby wszystkich do tego samego stołu.
+  const [draft] = useState(createRoomDraft);
+  const [roomId, setRoomId] = useState(() => initialRoomId || draft.id);
+  const [roomName, setRoomName] = useState(draft.name);
   const [role, setRole] = useState<SelfAssignableRole>('voter');
   const [avatarColor, setAvatarColor] = useState(
     () => localStorage.getItem('poker_avatar') || AVATAR_COLORS[0]
@@ -52,9 +59,9 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({ initialRoomId, onJoin })
   };
 
   const generateNewRoomId = () => {
-    const code = createRoomCode();
-    setRoomId(`${ROOM_ID_PREFIX}${code}`);
-    setRoomName(`Planning Sprint #${code}`);
+    const next = createRoomDraft();
+    setRoomId(next.id);
+    setRoomName(next.name);
     setIsCreatingNew(true);
   };
 

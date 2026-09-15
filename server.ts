@@ -127,6 +127,7 @@ function serializeRoomFor(room: RoomState, viewerId: string | null): RoomState {
       ...p,
       vote: revealed || id === viewerId ? p.vote : null,
       hasVoted: p.vote !== null,
+      revealedVote: revealed ? p.revealedVote : null,
     };
   }
 
@@ -243,8 +244,19 @@ function checkAndAutoReveal(room: RoomState): boolean {
   if (required.length === 0) return false;
   if (!required.every((p) => p.vote !== null)) return false;
 
-  room.votingState = 'revealed';
+  revealCards(room);
   return true;
+}
+
+/**
+ * Odkrywa karty i zapamiętuje, co kto miał w tej chwili. Po odkryciu głos
+ * wolno zmienić — porównanie z revealedVote pokazuje, czyja karta się zmieniła.
+ */
+function revealCards(room: RoomState): void {
+  room.votingState = 'revealed';
+  Object.values(room.participants).forEach((p) => {
+    p.revealedVote = p.vote;
+  });
 }
 
 /**
@@ -275,6 +287,7 @@ function clearVotes(room: RoomState): void {
   Object.values(room.participants).forEach((p) => {
     p.vote = null;
     p.hasVoted = false;
+    p.revealedVote = null;
   });
 }
 
@@ -704,6 +717,7 @@ function handleJoinRoom(
       avatarColor: user.avatarColor,
       vote: null,
       hasVoted: false,
+      revealedVote: null,
       isConnected: true,
       joinedAt: now,
       joinOrder: ++room.joinCounter,
@@ -744,11 +758,12 @@ function handleRoomMessage(
 ): void {
   switch (msg.type) {
     case 'VOTE': {
-      if (room.votingState === 'revealed') return;
+      // Głos wolno zmienić także po odkryciu — revealedVote pamięta kartę
+      // z chwili odkrycia, a statystyki każdy klient liczy od nowa.
       if (me.role === 'observer') return;
       // P1-5: karta musi pochodzić z aktualnej talii.
       if (!room.customDeck.includes(msg.card)) {
-        sendError(conn,'INVALID_MESSAGE', 'Karta spoza talii');
+        sendError(conn, 'INVALID_MESSAGE', 'Karta spoza talii');
         return;
       }
 
@@ -762,7 +777,7 @@ function handleRoomMessage(
 
     case 'REVEAL': {
       if (room.votingState === 'revealed') return;
-      room.votingState = 'revealed';
+      revealCards(room);
       broadcastRoomState(room);
       break;
     }
@@ -780,7 +795,7 @@ function handleRoomMessage(
     case 'COMPLETE_ROUND': {
       // P2-4: rundę zamykamy dopiero po odkryciu kart.
       if (room.votingState !== 'revealed') {
-        sendError(conn,'FORBIDDEN', 'Runda nie została odkryta');
+        sendError(conn, 'FORBIDDEN', 'Runda nie została odkryta');
         return;
       }
 
@@ -913,7 +928,7 @@ function handleRoomMessage(
         (t) => now - t < LIMITS.reactionWindowMs
       );
       if (ctx.reactionTimes.length >= LIMITS.reactionBurst) {
-        sendError(conn,'RATE_LIMITED', 'Zbyt wiele reakcji');
+        sendError(conn, 'RATE_LIMITED', 'Zbyt wiele reakcji');
         return;
       }
       ctx.reactionTimes.push(now);

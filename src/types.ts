@@ -28,6 +28,12 @@ export interface Participant {
   vote: string | null;
   /** Czy uczestnik oddał głos — bezpieczne do rozesłania przed odkryciem. */
   hasVoted: boolean;
+  /**
+   * Karta z chwili odkrycia. Po odkryciu głos wolno zmienić — różnica między
+   * vote a revealedVote oznacza zmianę, wyróżnianą przy stole. Przed
+   * odkryciem zawsze null.
+   */
+  revealedVote: string | null;
   isConnected: boolean;
   joinedAt: number;
   /** Pozycja w kolejce dołączeń — wyznacza następcę moderatora. */

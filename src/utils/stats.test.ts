@@ -23,6 +23,7 @@ function participant(
     avatarColor: '#3B82F6',
     vote,
     hasVoted: vote !== null,
+    revealedVote: null,
     isConnected: true,
     joinedAt: 0,
     joinOrder: seq,

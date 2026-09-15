@@ -437,7 +437,8 @@ export default function App() {
               cards={room.customDeck && room.customDeck.length > 0 ? room.customDeck : DECK_PRESETS.fibonacci}
               selectedVote={myVote}
               onVote={handleVote}
-              disabled={room.votingState === 'revealed'}
+              isRevealed={room.votingState === 'revealed'}
+              isChanged={room.votingState === 'revealed' && !!me && me.vote !== me.revealedVote}
               userRole={userRole}
             />
           </main>

@@ -26,7 +26,7 @@ Zbudowana z użyciem **React 19**, **TypeScript**, **Tailwind CSS v4**, **Node.j
 - 🃏 **Interaktywny stół pokerowy**:
   - Ukryte rewersy kart w trakcie trwania rundy.
   - Synchroniczne odkrycie kart z efektami dźwiękowymi Web Audio API, konfetti przy pełnej zgodzie zespołu oraz **konfetti z kawą**, gdy większość wybierze ☕ — zespół prosi wtedy o przerwę, nie o estymatę.
-  - Automatyczne statystyki rundy: **średnia arytmetyczna**, **mediana**, **stopień zgodności zespołu (%)**, **rozkład głosów** oraz osobno liczone **wstrzymania**.
+  - Automatyczne statystyki rundy: **średnia arytmetyczna**, **mediana**, **stopień zgodności zespołu (%)** oraz osobno liczone **wstrzymania**.
 - 🙋 **Wstrzymania poza matematyką**:
   - `?` i `☕` nie są estymatą. Nie wchodzą do średniej, mediany, mody ani konsensusu — pokój, w którym wszyscy wybrali `?`, pokazuje 0% zgody, a nie 100%.
 - 👥 **Role w zespole**:
@@ -264,6 +264,7 @@ Uruchamia zestaw `node:test` przez `tsx`. Testy pokrywają `src/utils/stats.ts`,
 │   │   └── useDismissOnOutside.ts # Zamykanie menu i pól edycji po kliknięciu obok
 │   ├── utils/
 │   │   ├── audio.ts           # Synteza dźwięku przez Web Audio API
+│   │   ├── cardValue.ts       # Wspólny rozmiar wartości kart (talia i stół)
 │   │   ├── celebrate.ts       # Konfetti zgodności i konfetti z kawą
 │   │   ├── polyfill.ts        # Zgodność ze środowiskiem przeglądarki
 │   │   ├── roomId.ts          # Generator identyfikatorów pokoi ROOM-XXXX
@@ -295,7 +296,8 @@ Uruchamia zestaw `node:test` przez `tsx`. Testy pokrywają `src/utils/stats.ts`,
    - Uczestnicy wybierają kartę z dolnego paska. Pozostali widzą wyłącznie to, że jesteś gotowy — nigdy którą kartę wybrałeś.
 3. **Odkrycie kart (Reveal)**:
    - Dowolny uczestnik klika „Odkryj karty" albo odkrycie następuje automatycznie, gdy wszyscy głosujący oddadzą głos.
-   - Pojawia się podsumowanie: średnia, mediana, stopień zgodności i rozkład głosów — z konfetti przy pełnej zgodzie albo konfetti z kawą, gdy pokój wybrał głównie ☕.
+   - Po odkryciu kartę nadal można zmienić — statystyki i proponowany wynik przeliczają się na bieżąco, a zmienione karty są przy stole pomarańczowe.
+   - Pojawia się podsumowanie: średnia, mediana i stopień zgodności — z konfetti przy pełnej zgodzie albo konfetti z kawą, gdy pokój wybrał głównie ☕.
 4. **Kolejna runda**:
    - „Zapisz wynik i dalej" archiwizuje rundę w historii i podbija licznik; „Resetuj" tylko czyści stół.
    - W obu przypadkach z pokoju znikają profile osób, które opuściły sesję.
