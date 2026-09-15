@@ -39,6 +39,21 @@ export const LIFECYCLE = {
   heartbeatIntervalMs: 30 * 1000,
 } as const;
 
+/* ---------- Transport zapasowy: HTTP long-polling ---------- */
+
+export const POLLING = {
+  /** Jak długo serwer trzyma GET bez ramek do oddania — poniżej typowych limitów proxy. */
+  holdMs: 25 * 1000,
+  /** Sesja bez żadnego GET-a przez ten czas uznawana jest za zerwaną. */
+  sessionTtlMs: 40 * 1000,
+  sweepIntervalMs: 5 * 1000,
+  /** Klient, który przestał odbierać, nie może rozdmuchać pamięci serwera. */
+  maxQueuedFrames: 500,
+  /** Ile wiadomości klient może przesłać jednym POST-em. */
+  maxBatch: 20,
+  maxSessions: 1000,
+} as const;
+
 /* ---------- Wiadomości klient -> serwer ---------- */
 
 export interface ResumeCredentials {

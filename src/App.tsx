@@ -17,6 +17,7 @@ import { ParticipantsModal } from './components/ParticipantsModal';
 import { SettingsModal } from './components/SettingsModal';
 import { ReactionsOverlay } from './components/ReactionsOverlay';
 import { soundEffects } from './utils/audio';
+import { Connection, openConnection } from './transport';
 
 interface Identity {
   userId: string;
@@ -26,16 +27,6 @@ interface Identity {
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 30000;
 const REACTION_TTL_MS = 3000;
-
-/**
- * Keep-alive na poziomie aplikacji.
- *
- * Serwer ma własny heartbeat protokołowy (ping/pong biblioteki ws), który
- * wykrywa i usuwa martwe połączenia. Ten interwał rozwiązuje inny problem:
- * ruch wychodzący od klienta resetuje liczniki bezczynności na proxy
- * (Cloud Run, Nginx), które potrafią zamknąć cichy tunel WebSocket.
- */
-const KEEPALIVE_INTERVAL_MS = 15000;
 
 /**
  * Tożsamość nadaje serwer. Trzymamy ją per pokój, żeby wznowienie połączenia
@@ -86,9 +77,8 @@ export default function App() {
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  const socketRef = useRef<WebSocket | null>(null);
+  const connectionRef = useRef<Connection | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
-  const keepAliveIntervalRef = useRef<number | null>(null);
   const reactionTimersRef = useRef<Set<number>>(new Set());
 
   /**
@@ -116,11 +106,9 @@ export default function App() {
     avatarColor: '#3B82F6',
   });
 
-  // Send message over WebSocket
+  // Send message to the realtime server
   const sendMessage = useCallback((msg: object) => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify(msg));
-    }
+    connectionRef.current?.send(msg);
   }, []);
 
   const clearReconnectTimer = useCallback(() => {
@@ -130,65 +118,39 @@ export default function App() {
     }
   }, []);
 
-  const clearKeepAlive = useCallback(() => {
-    if (keepAliveIntervalRef.current !== null) {
-      clearInterval(keepAliveIntervalRef.current);
-      keepAliveIntervalRef.current = null;
-    }
-  }, []);
-
-  // Connect to WebSocket Server
-  const connectWebSocket = useCallback(
+  // Connect to the realtime server (WebSocket, a gdy sieć go blokuje — long-polling)
+  const connect = useCallback(
     (targetRoomId: string) => {
       clearReconnectTimer();
-      clearKeepAlive();
 
-      if (socketRef.current) {
-        // Stare połączenie nie może wywołać ponownego łączenia.
-        socketRef.current.onclose = null;
-        socketRef.current.close();
-      }
+      // Stare połączenie nie może wywołać ponownego łączenia — close() nie woła onClose.
+      connectionRef.current?.close();
 
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host;
-      const wsUrl = `${protocol}//${host}/ws`;
-
-      const ws = new WebSocket(wsUrl);
-      socketRef.current = ws;
-
-      ws.onopen = () => {
+      const handleOpen = () => {
         setIsConnected(true);
         attemptRef.current = 0;
-
-        // Keep-alive przeciwko limitom bezczynności na proxy.
-        keepAliveIntervalRef.current = window.setInterval(() => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'PING' }));
-          }
-        }, KEEPALIVE_INTERVAL_MS);
 
         const profile = userProfileRef.current;
         const identity = identityRef.current ?? loadIdentity(targetRoomId);
 
-        ws.send(
-          JSON.stringify({
-            type: 'JOIN_ROOM',
-            roomId: targetRoomId,
-            roomName: profile.roomName,
-            user: {
-              name: profile.name || 'Developer',
-              role: profile.role,
-              avatarColor: profile.avatarColor,
-            },
-            // Wznowienie istniejącego wpisu wymaga podpisanego tokenu.
-            ...(identity ? { resume: identity } : {}),
-          })
-        );
+        connection.send({
+          type: 'JOIN_ROOM',
+          roomId: targetRoomId,
+          roomName: profile.roomName,
+          user: {
+            name: profile.name || 'Developer',
+            role: profile.role,
+            avatarColor: profile.avatarColor,
+          },
+          // Wznowienie istniejącego wpisu wymaga podpisanego tokenu.
+          ...(identity ? { resume: identity } : {}),
+        });
       };
 
-      ws.onmessage = (event) => {
+      const handleMessage = (message: unknown) => {
         try {
-          const data = JSON.parse(event.data);
+          // Ramki serwera nie są otypowane po stronie klienta — tak jak wcześniej wynik JSON.parse.
+          const data = message as any;
 
           switch (data.type) {
             case 'PONG':
@@ -233,13 +195,12 @@ export default function App() {
               break;
           }
         } catch (e) {
-          console.error('Failed to parse WebSocket message:', e);
+          console.error('Failed to handle server message:', e);
         }
       };
 
-      ws.onclose = () => {
+      const handleClose = () => {
         setIsConnected(false);
-        clearKeepAlive();
         if (!isJoinedRef.current) return;
 
         // Wykładniczy backoff zamiast stałych 2 sekund w nieskończoność.
@@ -250,17 +211,20 @@ export default function App() {
         }, delay);
       };
 
-      ws.onerror = (err) => {
-        console.error('WebSocket connection error:', err);
-      };
+      const connection = openConnection({
+        onOpen: handleOpen,
+        onMessage: handleMessage,
+        onClose: handleClose,
+      });
+      connectionRef.current = connection;
     },
-    [clearReconnectTimer, clearKeepAlive]
+    [clearReconnectTimer]
   );
 
-  // Najświeższa wersja funkcji dla ponowień wywoływanych z onclose.
+  // Najświeższa wersja funkcji dla ponowień wywoływanych z onClose.
   useEffect(() => {
-    connectRef.current = connectWebSocket;
-  }, [connectWebSocket]);
+    connectRef.current = connect;
+  }, [connect]);
 
   /**
    * Powrót do karty lub odzyskanie sieci łączy natychmiast, bez czekania na
@@ -272,15 +236,12 @@ export default function App() {
       if (!isJoinedRef.current) return;
       if (document.visibilityState !== 'visible' && navigator.onLine === false) return;
 
-      const socket = socketRef.current;
-      const isDown =
-        !socket ||
-        socket.readyState === WebSocket.CLOSED ||
-        socket.readyState === WebSocket.CLOSING;
+      const connection = connectionRef.current;
+      const isDown = !connection || connection.state === 'closed';
 
       if (isDown && roomIdRef.current) {
         attemptRef.current = 0;
-        connectWebSocket(roomIdRef.current);
+        connect(roomIdRef.current);
       }
     };
 
@@ -290,19 +251,15 @@ export default function App() {
       document.removeEventListener('visibilitychange', reconnectIfDropped);
       window.removeEventListener('online', reconnectIfDropped);
     };
-  }, [connectWebSocket]);
+  }, [connect]);
 
   // Cleanup on unmount
   useEffect(() => {
     const reactionTimers = reactionTimersRef.current;
     return () => {
       isJoinedRef.current = false;
-      if (socketRef.current) {
-        socketRef.current.onclose = null;
-        socketRef.current.close();
-      }
+      connectionRef.current?.close();
       if (reconnectTimeoutRef.current !== null) clearTimeout(reconnectTimeoutRef.current);
-      if (keepAliveIntervalRef.current !== null) clearInterval(keepAliveIntervalRef.current);
       reactionTimers.forEach((t) => clearTimeout(t));
       reactionTimers.clear();
     };
@@ -335,7 +292,7 @@ export default function App() {
     const newUrl = `${window.location.pathname}?room=${data.roomId}`;
     window.history.pushState({ path: newUrl }, '', newUrl);
 
-    connectWebSocket(data.roomId);
+    connect(data.roomId);
   };
 
   /**
@@ -352,13 +309,9 @@ export default function App() {
     isJoinedRef.current = false;
     attemptRef.current = 0;
     clearReconnectTimer();
-    clearKeepAlive();
 
-    if (socketRef.current) {
-      socketRef.current.onclose = null;
-      socketRef.current.close();
-      socketRef.current = null;
-    }
+    connectionRef.current?.close();
+    connectionRef.current = null;
 
     reactionTimersRef.current.forEach((t) => clearTimeout(t));
     reactionTimersRef.current.clear();
@@ -370,7 +323,7 @@ export default function App() {
 
     // Adres wraca do postaci bez pokoju, żeby odświeżenie nie wrzuciło z powrotem.
     window.history.pushState({ path: window.location.pathname }, '', window.location.pathname);
-  }, [clearReconnectTimer, clearKeepAlive]);
+  }, [clearReconnectTimer]);
 
   // Voting Actions
   const handleVote = (card: string) => {

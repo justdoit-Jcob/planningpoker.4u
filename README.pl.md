@@ -229,6 +229,8 @@ W **Traefiku** nie trzeba nic dodawać — upgrade jest przepuszczany domyślnie
 
 Klient wysyła `PING` co 15 sekund właśnie po to, żeby proxy z limitem bezczynności nie zamknęło cichego tunelu, ale podniesienie `proxy_read_timeout` i tak warto zrobić.
 
+**Sieci blokujące WebSockety.** Część sieci firmowych (proxy z inspekcją TLS, bramki SWG) przepuszcza zwykłe HTTPS, ale ucina upgrade do WebSocketu — strona się ładuje, a pokój nigdy się nie łączy. Klient radzi sobie z tym sam: jeśli WebSocket nie dostarczy żadnej ramki w ciągu 6 sekund, przechodzi na HTTP long-polling pod `/api/rt/*` (wstrzymany `GET` na ramki przychodzące, `POST` na wychodzące) i zostaje przy nim do końca sesji karty. Logika pokoi jest na obu transportach identyczna. Jedyny wymóg: nic po drodze nie może cache'ować `/api/rt/*` — odpowiedzi niosą `Cache-Control: no-store`.
+
 ### Skalowanie
 
 Stan pokoi żyje w pamięci procesu serwera, więc **uruchamiaj jedną replikę**. Druga instancja obsługiwałaby własny, całkowicie odrębny zestaw pokoi. Nie ma też czego podpinać jako wolumen — restart świadomie kasuje wszystkie pokoje i historię.
@@ -267,8 +269,9 @@ Uruchamia zestaw `node:test` przez `tsx`. Testy pokrywają `src/utils/stats.ts`,
 │   │   ├── stats.ts           # Średnia, mediana, konsensus, wstrzymania
 │   │   └── stats.test.ts      # Testy jednostkowe silnika statystyk
 │   ├── protocol.ts            # Schemat wiadomości WebSocket, walidacja, limity
+│   ├── transport.ts           # Połączenie realtime: WebSocket z zapasowym long-pollingiem
 │   ├── types.ts               # Wspólne typy, talie i pomocnicy ról
-│   ├── App.tsx                # Orkiestracja aplikacji i klient WebSocket
+│   ├── App.tsx                # Orkiestracja aplikacji i klient czasu rzeczywistego
 │   ├── main.tsx               # Punkt wejścia aplikacji
 │   └── index.css              # Style globalne (Tailwind CSS v4)
 ├── server.ts                  # Serwer Express, stan pokoi, tożsamość, autoryzacja

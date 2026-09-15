@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import http from 'http';
 import path from 'path';
 import { WebSocketServer, WebSocket, RawData } from 'ws';
@@ -18,6 +18,7 @@ import {
   LIFECYCLE,
   LIMITS,
   MODERATOR_ONLY,
+  POLLING,
   ServerErrorCode,
   parseClientMessage,
 } from './src/protocol';
@@ -43,15 +44,24 @@ app.use(express.json({ limit: '32kb' }));
 // Stan pokoi w pamięci procesu.
 const rooms = new Map<string, RoomState>();
 
+/**
+ * Połączenie klienta niezależne od transportu.
+ *
+ * Logika pokoi rozmawia wyłącznie z tym interfejsem, więc nie wie, czy klient
+ * przyszedł WebSocketem, czy zapasowym long-pollingiem po HTTP.
+ */
+interface ClientConnection {
+  send(payload: string): void;
+  isOpen(): boolean;
+}
+
 interface ClientContext {
   roomId: string | null;
   userId: string | null;
-  /** Heartbeat (P1-2): ustawiane na false przed pingiem, na true przy pongu. */
-  isAlive: boolean;
   /** Znaczniki czasu ostatnich reakcji — throttling (P2-6). */
   reactionTimes: number[];
 }
-const clientContextMap = new WeakMap<WebSocket, ClientContext>();
+const connections = new Map<ClientConnection, ClientContext>();
 
 /* ---------- Tożsamość uczestnika (P0-4) ---------- */
 
@@ -125,12 +135,10 @@ function serializeRoomFor(room: RoomState, viewerId: string | null): RoomState {
 
 /* ---------- Rozsyłanie ---------- */
 
-function clientsInRoom(roomId: string): { client: WebSocket; ctx: ClientContext }[] {
-  const result: { client: WebSocket; ctx: ClientContext }[] = [];
-  wss.clients.forEach((client) => {
-    if (client.readyState !== WebSocket.OPEN) return;
-    const ctx = clientContextMap.get(client);
-    if (ctx && ctx.roomId === roomId) result.push({ client, ctx });
+function clientsInRoom(roomId: string): { client: ClientConnection; ctx: ClientContext }[] {
+  const result: { client: ClientConnection; ctx: ClientContext }[] = [];
+  connections.forEach((ctx, client) => {
+    if (client.isOpen() && ctx.roomId === roomId) result.push({ client, ctx });
   });
   return result;
 }
@@ -168,9 +176,9 @@ function broadcastRaw(roomId: string, message: object): void {
   clientsInRoom(roomId).forEach(({ client }) => client.send(payload));
 }
 
-function sendError(ws: WebSocket, code: ServerErrorCode, detail?: string): void {
-  if (ws.readyState !== WebSocket.OPEN) return;
-  ws.send(JSON.stringify({ type: 'ERROR', code, ...(detail ? { detail } : {}) }));
+function sendError(conn: ClientConnection, code: ServerErrorCode, detail?: string): void {
+  if (!conn.isOpen()) return;
+  conn.send(JSON.stringify({ type: 'ERROR', code, ...(detail ? { detail } : {}) }));
 }
 
 /* ---------- Moderator: nadanie i sukcesja (P0-5) ---------- */
@@ -311,16 +319,17 @@ setInterval(() => {
 
 /* ---------- Heartbeat (P1-2) ---------- */
 
+/** Stan heartbeatu gniazd: false przed pingiem, true po pongu. */
+const wsAlive = new WeakMap<WebSocket, boolean>();
+
 setInterval(() => {
   wss.clients.forEach((client) => {
-    const ctx = clientContextMap.get(client);
-    if (!ctx) return;
-    if (!ctx.isAlive) {
+    if (!wsAlive.get(client)) {
       // Brak ponga od poprzedniej rundy — połączenie jest martwe.
       client.terminate();
       return;
     }
-    ctx.isAlive = false;
+    wsAlive.set(client, false);
     try {
       client.ping();
     } catch {
@@ -360,96 +369,299 @@ setInterval(() => {
   });
 }, LIFECYCLE.sweepIntervalMs);
 
-/* ---------- Obsługa połączeń ---------- */
+/* ---------- Obsługa połączeń (wspólna dla obu transportów) ---------- */
+
+function openClient(conn: ClientConnection): ClientContext {
+  const ctx: ClientContext = { roomId: null, userId: null, reactionTimes: [] };
+  connections.set(conn, ctx);
+  return ctx;
+}
+
+/** Przetwarza jedną wiadomość klienta, niezależnie od drogi, którą przyszła. */
+function handleClientMessage(conn: ClientConnection, ctx: ClientContext, raw: unknown): void {
+  try {
+    const msg = parseClientMessage(raw);
+    if (!msg) {
+      sendError(conn, 'INVALID_MESSAGE');
+      return;
+    }
+
+    // Keep-alive na poziomie aplikacji: odpowiadamy od razu i nie wymagamy
+    // przynależności do pokoju. Utrzymuje ruch na tunelu, żeby proxy
+    // z limitem bezczynności nie zamknęło cichego połączenia.
+    if (msg.type === 'PING') {
+      conn.send(JSON.stringify({ type: 'PONG', timestamp: Date.now() }));
+      return;
+    }
+
+    if (msg.type === 'JOIN_ROOM') {
+      handleJoinRoom(conn, ctx, msg);
+      return;
+    }
+
+    // Każda pozostała akcja wymaga ustalonej tożsamości w pokoju.
+    if (!ctx.roomId || !ctx.userId) return;
+    const room = rooms.get(ctx.roomId);
+    if (!room) {
+      sendError(conn, 'ROOM_NOT_FOUND');
+      return;
+    }
+    const me = room.participants[ctx.userId];
+    if (!me) return;
+
+    // P0-3: pojedyncza bramka autoryzacyjna zamiast sprawdzeń w handlerach.
+    if (MODERATOR_ONLY.has(msg.type) && !isModerator(room, ctx.userId)) {
+      sendError(conn, 'FORBIDDEN', msg.type);
+      return;
+    }
+
+    me.lastSeen = Date.now();
+    touchRoom(room);
+    handleRoomMessage(conn, ctx, room, me, msg);
+  } catch (err) {
+    console.error('Error handling client message:', err);
+  }
+}
+
+/** Rozłączenie klienta: zamknięte gniazdo albo wygasła sesja long-pollingu. */
+function closeClient(conn: ClientConnection): void {
+  const ctx = connections.get(conn);
+  connections.delete(conn);
+  if (!ctx || !ctx.roomId || !ctx.userId) return;
+  const userId = ctx.userId;
+
+  const room = rooms.get(ctx.roomId);
+  if (!room) return;
+
+  const participant = room.participants[userId];
+  if (!participant) return;
+
+  // Ten sam uczestnik może mieć otwartą drugą kartę — wtedy nadal jest online.
+  const stillOpen = clientsInRoom(room.id).some((t) => t.ctx.userId === userId);
+  if (stillOpen) return;
+
+  participant.isConnected = false;
+  participant.lastSeen = Date.now();
+
+  reassignModerator(room);
+  const revealed = checkAndAutoReveal(room);
+  broadcastRoomState(room, revealed ? 'AUTO_REVEALED' : undefined);
+}
+
+/* ---------- Transport: WebSocket ---------- */
 
 wss.on('connection', (ws: WebSocket) => {
-  const ctx: ClientContext = { roomId: null, userId: null, isAlive: true, reactionTimes: [] };
-  clientContextMap.set(ws, ctx);
+  const conn: ClientConnection = {
+    send: (payload) => ws.send(payload),
+    isOpen: () => ws.readyState === WebSocket.OPEN,
+  };
+  const ctx = openClient(conn);
+  wsAlive.set(ws, true);
 
   ws.on('pong', () => {
-    ctx.isAlive = true;
+    wsAlive.set(ws, true);
   });
 
   ws.on('message', (data: RawData) => {
+    let raw: unknown;
     try {
-      let raw: unknown;
-      try {
-        raw = JSON.parse(data.toString());
-      } catch {
-        sendError(ws, 'INVALID_MESSAGE', 'Nieprawidłowy JSON');
-        return;
-      }
+      raw = JSON.parse(data.toString());
+    } catch {
+      sendError(conn, 'INVALID_MESSAGE', 'Nieprawidłowy JSON');
+      return;
+    }
+    handleClientMessage(conn, ctx, raw);
+  });
 
-      const msg = parseClientMessage(raw);
-      if (!msg) {
-        sendError(ws, 'INVALID_MESSAGE');
-        return;
-      }
+  ws.on('close', () => closeClient(conn));
+});
 
-      // Keep-alive na poziomie aplikacji: odpowiadamy od razu i nie wymagamy
-      // przynależności do pokoju. Utrzymuje ruch na tunelu, żeby proxy
-      // z limitem bezczynności nie zamknęło cichego połączenia.
-      if (msg.type === 'PING') {
-        ws.send(JSON.stringify({ type: 'PONG', timestamp: Date.now() }));
-        return;
-      }
+/* ---------- Transport zapasowy: HTTP long-polling ---------- */
 
-      if (msg.type === 'JOIN_ROOM') {
-        handleJoinRoom(ws, ctx, msg);
-        return;
-      }
+/**
+ * Część sieci firmowych (proxy z inspekcją TLS, bramki SWG) przepuszcza zwykłe
+ * HTTPS, ale ucina upgrade do WebSocketu — strona się ładuje, a pokój nie.
+ * Klient przechodzi wtedy na ten transport: ramki odbiera długo wstrzymanym
+ * GET-em, a wysyła POST-em. Obie drogi kończą się na ClientConnection, więc
+ * logika pokoi i jej zabezpieczenia są te same.
+ *
+ * Identyfikator sesji jest losowy i odpowiada samemu gniazdu — nie daje
+ * tożsamości w pokoju; tę nadal potwierdza wyłącznie podpisany token.
+ */
+interface PollSession {
+  id: string;
+  conn: ClientConnection;
+  ctx: ClientContext;
+  /** Ramki czekające na odbiór — każda jest gotowym JSON-em. */
+  queue: string[];
+  /** Wstrzymana odpowiedź GET, na którą czeka klient. */
+  waiting: Response | null;
+  holdTimer: NodeJS.Timeout | null;
+  flushScheduled: boolean;
+  lastSeen: number;
+  open: boolean;
+}
 
-      // Każda pozostała akcja wymaga ustalonej tożsamości w pokoju.
-      if (!ctx.roomId || !ctx.userId) return;
-      const room = rooms.get(ctx.roomId);
-      if (!room) {
-        sendError(ws, 'ROOM_NOT_FOUND');
-        return;
-      }
-      const me = room.participants[ctx.userId];
-      if (!me) return;
+const pollSessions = new Map<string, PollSession>();
 
-      // P0-3: pojedyncza bramka autoryzacyjna zamiast sprawdzeń w handlerach.
-      if (MODERATOR_ONLY.has(msg.type) && !isModerator(room, ctx.userId)) {
-        sendError(ws, 'FORBIDDEN', msg.type);
-        return;
-      }
+function stopHold(session: PollSession): void {
+  if (session.holdTimer) clearTimeout(session.holdTimer);
+  session.holdTimer = null;
+}
 
-      me.lastSeen = Date.now();
-      touchRoom(room);
-      handleRoomMessage(ws, ctx, room, me, msg);
-    } catch (err) {
-      console.error('Error handling WebSocket message:', err);
+/** Oddaje zebrane ramki wstrzymanemu GET-owi. */
+function flushPoll(session: PollSession): void {
+  const res = session.waiting;
+  if (!res) return;
+  session.waiting = null;
+  stopHold(session);
+  session.lastSeen = Date.now();
+  res.type('application/json').send(`[${session.queue.splice(0).join(',')}]`);
+}
+
+function enqueueFrame(session: PollSession, payload: string): void {
+  if (!session.open) return;
+  session.queue.push(payload);
+
+  if (session.queue.length > POLLING.maxQueuedFrames) {
+    // Klient przestał odbierać. Zamykamy poza bieżącym rozsyłaniem stanu.
+    setImmediate(() => closePollSession(session));
+    return;
+  }
+
+  // Ramki z jednego przebiegu (np. IDENTITY + ROOM_STATE) jadą jedną odpowiedzią.
+  if (session.flushScheduled) return;
+  session.flushScheduled = true;
+  setImmediate(() => {
+    session.flushScheduled = false;
+    flushPoll(session);
+  });
+}
+
+function createPollSession(): PollSession {
+  const conn: ClientConnection = {
+    send: (payload) => enqueueFrame(session, payload),
+    isOpen: () => session.open,
+  };
+  const session: PollSession = {
+    id: randomUUID(),
+    conn,
+    ctx: openClient(conn),
+    queue: [],
+    waiting: null,
+    holdTimer: null,
+    flushScheduled: false,
+    lastSeen: Date.now(),
+    open: true,
+  };
+  pollSessions.set(session.id, session);
+  return session;
+}
+
+function closePollSession(session: PollSession): void {
+  if (!session.open) return;
+  session.open = false;
+  pollSessions.delete(session.id);
+  stopHold(session);
+  if (session.waiting) {
+    session.waiting.status(410).json({ error: 'Session closed' });
+    session.waiting = null;
+  }
+  closeClient(session.conn);
+}
+
+function findPollSession(req: Request, res: Response): PollSession | null {
+  const sid = typeof req.query.sid === 'string' ? req.query.sid : '';
+  const session = pollSessions.get(sid);
+  if (!session) {
+    // 410: klient zakłada nowe połączenie, tak jak po zamknięciu gniazda.
+    res.status(410).json({ error: 'Session closed' });
+    return null;
+  }
+  session.lastSeen = Date.now();
+  return session;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  pollSessions.forEach((session) => {
+    // Wstrzymany GET oznacza żywego klienta; bez niego liczy się ostatni kontakt.
+    if (!session.waiting && now - session.lastSeen > POLLING.sessionTtlMs) {
+      closePollSession(session);
     }
   });
+}, POLLING.sweepIntervalMs);
 
-  ws.on('close', () => {
-    if (!ctx.roomId || !ctx.userId) return;
-    const room = rooms.get(ctx.roomId);
-    if (!room) return;
+// Proxy po drodze nie może zbuforować ani oddać nikomu tych odpowiedzi.
+app.use('/api/rt', (_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
 
-    const participant = room.participants[ctx.userId];
-    if (!participant) return;
+app.post('/api/rt/open', (_req, res) => {
+  if (pollSessions.size >= POLLING.maxSessions) {
+    res.status(503).json({ error: 'Too many sessions' });
+    return;
+  }
+  res.json({ sid: createPollSession().id });
+});
 
-    // Ten sam uczestnik może mieć otwartą drugą kartę — wtedy nadal jest online.
-    const stillOpen = clientsInRoom(room.id).some(
-      (t) => t.client !== ws && t.ctx.userId === ctx.userId
-    );
-    if (stillOpen) return;
+app.get('/api/rt/poll', (req, res) => {
+  const session = findPollSession(req, res);
+  if (!session) return;
 
-    participant.isConnected = false;
-    participant.lastSeen = Date.now();
+  // Nowszy GET wypiera starszy (np. ponowiony przez proxy) — ramki czekają na nowy.
+  if (session.waiting) {
+    const previous = session.waiting;
+    session.waiting = null;
+    stopHold(session);
+    previous.type('application/json').send('[]');
+  }
 
-    reassignModerator(room);
-    const revealed = checkAndAutoReveal(room);
-    broadcastRoomState(room, revealed ? 'AUTO_REVEALED' : undefined);
+  session.waiting = res;
+  if (session.queue.length > 0) {
+    flushPoll(session);
+    return;
+  }
+
+  session.holdTimer = setTimeout(() => flushPoll(session), POLLING.holdMs);
+  res.on('close', () => {
+    // Klient zerwał GET (zamknięta karta, przerwana sieć). Ramki czekają
+    // w kolejce, a brak kolejnego GET-a zamknie sesję po sessionTtlMs.
+    if (session.waiting !== res) return;
+    session.waiting = null;
+    stopHold(session);
+    session.lastSeen = Date.now();
   });
+});
+
+app.post('/api/rt/send', (req, res) => {
+  const session = findPollSession(req, res);
+  if (!session) return;
+
+  const frames: unknown[] = Array.isArray(req.body) ? req.body : [req.body];
+  if (frames.length > POLLING.maxBatch) {
+    res.status(413).json({ error: 'Too many messages' });
+    return;
+  }
+  for (const raw of frames) {
+    if (!session.open) break;
+    handleClientMessage(session.conn, session.ctx, raw);
+  }
+  res.status(204).end();
+});
+
+app.post('/api/rt/close', (req, res) => {
+  const sid = typeof req.query.sid === 'string' ? req.query.sid : '';
+  const session = pollSessions.get(sid);
+  if (session) closePollSession(session);
+  res.status(204).end();
 });
 
 /* ---------- Dołączanie do pokoju ---------- */
 
 function handleJoinRoom(
-  ws: WebSocket,
+  conn: ClientConnection,
   ctx: ClientContext,
   msg: Extract<ClientMessage, { type: 'JOIN_ROOM' }>
 ): void {
@@ -506,7 +718,7 @@ function handleJoinRoom(
   touchRoom(room);
 
   // Token tożsamości — klient odsyła go przy wznowieniu połączenia.
-  ws.send(
+  conn.send(
     JSON.stringify({
       type: 'IDENTITY',
       userId,
@@ -515,7 +727,7 @@ function handleJoinRoom(
     })
   );
 
-  ws.send(JSON.stringify({ type: 'ROOM_STATE', room: serializeRoomFor(room, userId) }));
+  conn.send(JSON.stringify({ type: 'ROOM_STATE', room: serializeRoomFor(room, userId) }));
 
   const revealed = checkAndAutoReveal(room);
   broadcastRoomState(room, revealed ? 'AUTO_REVEALED' : undefined);
@@ -524,7 +736,7 @@ function handleJoinRoom(
 /* ---------- Pozostałe akcje ---------- */
 
 function handleRoomMessage(
-  ws: WebSocket,
+  conn: ClientConnection,
   ctx: ClientContext,
   room: RoomState,
   me: Participant,
@@ -536,7 +748,7 @@ function handleRoomMessage(
       if (me.role === 'observer') return;
       // P1-5: karta musi pochodzić z aktualnej talii.
       if (!room.customDeck.includes(msg.card)) {
-        sendError(ws, 'INVALID_MESSAGE', 'Karta spoza talii');
+        sendError(conn,'INVALID_MESSAGE', 'Karta spoza talii');
         return;
       }
 
@@ -568,7 +780,7 @@ function handleRoomMessage(
     case 'COMPLETE_ROUND': {
       // P2-4: rundę zamykamy dopiero po odkryciu kart.
       if (room.votingState !== 'revealed') {
-        sendError(ws, 'FORBIDDEN', 'Runda nie została odkryta');
+        sendError(conn,'FORBIDDEN', 'Runda nie została odkryta');
         return;
       }
 
@@ -701,7 +913,7 @@ function handleRoomMessage(
         (t) => now - t < LIMITS.reactionWindowMs
       );
       if (ctx.reactionTimes.length >= LIMITS.reactionBurst) {
-        sendError(ws, 'RATE_LIMITED', 'Zbyt wiele reakcji');
+        sendError(conn,'RATE_LIMITED', 'Zbyt wiele reakcji');
         return;
       }
       ctx.reactionTimes.push(now);

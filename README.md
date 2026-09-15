@@ -239,6 +239,8 @@ In **Traefik** no extra configuration is needed — upgrades are forwarded by de
 
 The client sends a `PING` every 15 seconds specifically so that proxies with idle timeouts do not tear down a quiet tunnel, but raising `proxy_read_timeout` is still worth doing.
 
+**Networks that block WebSockets.** Some corporate networks (TLS-inspecting proxies, secure web gateways) let ordinary HTTPS through but drop the WebSocket upgrade — the page loads, the room never connects. The client handles this on its own: if the WebSocket delivers no frame within 6 seconds, it switches to HTTP long-polling on `/api/rt/*` (a held `GET` for incoming frames, `POST` for outgoing ones) and stays on it for the rest of the tab session. Room logic is identical on both transports. The only requirement is that nothing caches `/api/rt/*` — responses carry `Cache-Control: no-store`.
+
 ### Scaling
 
 Room state lives in the server process memory, so **run a single replica**. A second instance would serve its own, entirely separate set of rooms. There is nothing to mount as a volume either — a restart intentionally clears all rooms and history.
@@ -277,8 +279,9 @@ Runs the `node:test` suite through `tsx`. Coverage focuses on `src/utils/stats.t
 │   │   ├── stats.ts           # Median, average, consensus and abstention calculations
 │   │   └── stats.test.ts      # Unit tests for the statistics engine
 │   ├── protocol.ts            # WebSocket message schema, runtime validation, limits
+│   ├── transport.ts           # Realtime connection: WebSocket with HTTP long-polling fallback
 │   ├── types.ts               # Shared TypeScript schemas, decks & role helpers
-│   ├── App.tsx                # Main application orchestrator & WebSocket client
+│   ├── App.tsx                # Main application orchestrator & realtime client
 │   ├── main.tsx               # Application entry point
 │   └── index.css              # Global styling with Tailwind CSS v4
 ├── server.ts                  # Express server, room state, identity & authorization
