@@ -13,7 +13,7 @@ import {
   ChevronDown,
   History,
 } from 'lucide-react';
-import { DeckType, DECK_LABELS, Participant, ParticipantRole, RoomState } from '../types';
+import { DeckType, DECK_LABELS, Participant, ParticipantRole, RoomState, isObserving } from '../types';
 import { soundEffects } from '../utils/audio';
 import { useDismissOnOutside, useEscapeKey } from '../hooks/useDismissOnOutside';
 
@@ -53,6 +53,8 @@ export const Header: React.FC<HeaderProps> = ({
 
   const me = room.participants[selfId];
   const isModerator = me?.role === 'moderator';
+  // Moderator, który wybrał obserwację, też jest „Widzem” — przycisk pokazuje faktyczny tryb.
+  const observing = !!me && isObserving(me);
 
   const copyInviteLink = () => {
     const url = window.location.origin + window.location.pathname + '?room=' + room.id;
@@ -242,19 +244,19 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Toggle Role (Voter vs Observer) */}
           {me && (
             <button
-              onClick={() => onToggleRole(me.role === 'observer' ? 'voter' : 'observer')}
+              onClick={() => onToggleRole(observing ? 'voter' : 'observer')}
               className={`min-h-[38px] flex items-center gap-1.5 text-sm font-medium px-2.5 py-1.5 rounded-lg transition-all cursor-pointer ${
-                me.role === 'observer'
+                observing
                   ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                   : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40'
               }`}
               title={
-                me.role === 'observer'
+                observing
                   ? 'Obserwujesz (kliknij, by głosować)'
                   : 'Głosujesz (kliknij, by przejść w tryb obserwatora)'
               }
             >
-              {me.role === 'observer' ? (
+              {observing ? (
                 <>
                   <Eye className="size-4 text-amber-400" />
                   <span className="hidden sm:inline">Widz</span>
@@ -304,11 +306,12 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Wiersz 2: timer i reakcje */}
-        <div className="w-full flex items-center justify-center gap-2 sm:gap-3">
+        <div className="w-full flex flex-wrap items-center justify-center gap-1.5 sm:gap-3">
           {/* Countdown Timer */}
-          <div className="flex items-center bg-slate-950/80 border border-slate-800 rounded-xl px-2.5 py-1 text-slate-200 shadow-inner">
+          <div className="flex items-center bg-slate-950/80 border border-slate-800 rounded-xl px-2 sm:px-2.5 py-1 text-slate-200 shadow-inner">
+            <span className="text-xs font-semibold text-slate-400 mr-1.5 sm:mr-2">Minutnik</span>
             <span
-              className={`font-mono text-sm sm:text-base font-semibold tracking-wider mr-2 ${
+              className={`font-mono text-sm sm:text-base font-semibold tracking-wider mr-1 sm:mr-2 ${
                 room.timer.remaining <= 10 && room.timer.isRunning ? 'text-amber-400 animate-pulse' : 'text-indigo-200'
               }`}
             >
@@ -357,7 +360,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Quick reactions */}
-          <div className="flex items-center gap-0.5 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80">
+          <div className="flex items-center gap-0 sm:gap-0.5 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80">
             {quickReactions.map((emoji) => (
               <button
                 key={emoji}

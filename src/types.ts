@@ -155,9 +155,19 @@ export const AVATAR_COLORS = [
 
 /* ---------- Pomocnicy ról: jedno źródło prawdy (P2-1) ---------- */
 
-/** Uczestnicy, którzy MOGĄ oddać głos: głosujący i moderator (ten ostatni opcjonalnie). */
+/**
+ * Uczestnicy, którzy MOGĄ oddać głos: głosujący i moderator (ten ostatni opcjonalnie).
+ * Moderator, który wybrał obserwację, zachowuje funkcję, ale nie głosuje
+ * i nie siedzi przy stole — tak samo jak obserwator.
+ */
 export function canCastVote(p: Participant): boolean {
-  return p.role !== 'observer';
+  if (p.role === 'observer') return false;
+  return !(p.role === 'moderator' && p.preferredRole === 'observer');
+}
+
+/** Uczestnik tylko obserwuje: obserwator albo moderator w trybie obserwacji. */
+export function isObserving(p: Participant): boolean {
+  return !canCastVote(p);
 }
 
 /**

@@ -6,6 +6,7 @@ import {
   ReactionEvent,
   RoomState,
   SelfAssignableRole,
+  isObserving,
 } from './types';
 import { Header } from './components/Header';
 import { TopicBar } from './components/TopicBar';
@@ -444,7 +445,8 @@ export default function App() {
   // Participant info
   const myVote = room?.participants[selfId]?.vote ?? null;
   const me = room?.participants[selfId];
-  const userRole = me?.role || 'voter';
+  // Moderator w trybie obserwacji dostaje widok obserwatora (bez talii).
+  const userRole: ParticipantRole = me && isObserving(me) ? 'observer' : me?.role || 'voter';
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">

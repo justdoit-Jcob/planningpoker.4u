@@ -1,6 +1,6 @@
 import React from 'react';
 import { Users, Crown, Vote, Eye, CheckCircle2, Clock, X } from 'lucide-react';
-import { Participant, ParticipantRole } from '../types';
+import { Participant, ParticipantRole, canCastVote } from '../types';
 
 interface ParticipantsModalProps {
   isOpen: boolean;
@@ -84,7 +84,7 @@ export const ParticipantsModal: React.FC<ParticipantsModalProps> = ({
 
                 {/* Vote Indicator */}
                 <div className="shrink-0">
-                  {p.role !== 'observer' ? (
+                  {canCastVote(p) ? (
                     p.hasVoted ? (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-2 py-0.5 rounded-lg">
                         <CheckCircle2 className="size-4" />

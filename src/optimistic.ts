@@ -13,7 +13,7 @@
  */
 
 import { ClientMessage, LIMITS, TimerAction } from './protocol';
-import { DECK_PRESETS, Participant, RoomState, TimerState } from './types';
+import { DECK_PRESETS, Participant, RoomState, TimerState, canCastVote } from './types';
 
 /** Akcja wysłana do serwera, czekająca na potwierdzenie. */
 export interface PendingAction {
@@ -55,7 +55,7 @@ export function applyOptimistic(room: RoomState, selfId: string, msg: ClientMess
 
   switch (msg.type) {
     case 'VOTE': {
-      if (!me || me.role === 'observer' || !room.customDeck.includes(msg.card)) return room;
+      if (!me || !canCastVote(me) || !room.customDeck.includes(msg.card)) return room;
       return {
         ...room,
         participants: { ...room.participants, [selfId]: { ...me, vote: msg.card, hasVoted: true } },

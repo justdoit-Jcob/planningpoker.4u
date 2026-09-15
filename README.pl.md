@@ -75,7 +75,7 @@ Przebieg rundy — timer, odkrycie kart, zapis wyniku i reset — jest świadomi
 2. Gdy moderator się rozłączy, rola przechodzi na kolejnego uczestnika **według kolejności dołączania**.
 3. Gdy twórca wróci, rola wraca do niego, a zastępca odzyskuje swoją poprzednią rolę.
 
-Uczestnik może nadać sobie wyłącznie rolę `voter` albo `observer`. Rolę `moderator` przyznaje sam serwer.
+Uczestnik może nadać sobie wyłącznie rolę `voter` albo `observer`. Rolę `moderator` przyznaje sam serwer. Moderator może też przełączyć się na obserwację („Widz”): przestaje głosować i schodzi ze stołu, ale zachowuje uprawnienia moderatora.
 
 ### Tożsamość uczestnika
 

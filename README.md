@@ -83,7 +83,7 @@ The round flow — timer, revealing cards, saving the score and resetting — is
 2. If the moderator disconnects, the role passes to the next participant **in join order**.
 3. When the creator comes back, the role returns to them and the stand-in reverts to their previous role.
 
-A participant can only ever assign themselves `voter` or `observer`; `moderator` is granted by the server alone.
+A participant can only ever assign themselves `voter` or `observer`; `moderator` is granted by the server alone. The moderator can also switch to observing (“Widz”): they stop voting and leave the table but keep moderator permissions.
 
 ### Identity
 

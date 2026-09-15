@@ -86,6 +86,14 @@ describe('calculateVoteStats', () => {
     assert.equal(stats.average, 3);
   });
 
+  it('pomija moderatora, który wybrał obserwację', () => {
+    const stats = calculateVoteStats(
+      room(participant('2'), participant('8', { role: 'moderator', preferredRole: 'observer' }))
+    );
+    assert.equal(stats.totalVotes, 1);
+    assert.equal(stats.average, 2);
+  });
+
   it('trzyma wstrzymania poza konsensusem, średnią i modą', () => {
     const stats = calculateVoteStats(
       room(participant('5'), participant('5'), participant('?'), participant('☕'))

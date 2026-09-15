@@ -32,7 +32,8 @@ export const PokerTable: React.FC<PokerTableProps> = ({
   const participants = Object.values(room.participants) as Participant[];
   // Przy stole siedzą wszyscy, którzy mogą oddać głos — także moderator (P2-1).
   const voters = participants.filter(canCastVote);
-  const observers = participants.filter((p) => p.role === 'observer');
+  // Obserwatorzy oraz moderator, który wybrał obserwację.
+  const observers = participants.filter((p) => !canCastVote(p));
   const isRevealed = room.votingState === 'revealed';
 
   // Licznik obejmuje wszystkich połączonych przy stole, razem z moderatorem.

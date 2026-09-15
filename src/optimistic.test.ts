@@ -56,6 +56,11 @@ describe('applyOptimistic — VOTE', () => {
     assert.equal(before.participants.me.vote, null);
   });
 
+  it('pomija moderatora w trybie obserwacji', () => {
+    const r = room({ participants: { me: participant('me', { role: 'moderator', preferredRole: 'observer' }) } });
+    assert.equal(applyOptimistic(r, 'me', { type: 'VOTE', card: '5' }), r);
+  });
+
   it('pomija obserwatora i kartę spoza talii', () => {
     const observer = room({ participants: { me: participant('me', { role: 'observer' }) } });
     assert.equal(applyOptimistic(observer, 'me', { type: 'VOTE', card: '5' }), observer);

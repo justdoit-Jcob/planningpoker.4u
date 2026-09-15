@@ -12,6 +12,7 @@ import {
   ParticipantRole,
   SelfAssignableRole,
   getRequiredVoters,
+  canCastVote,
 } from './src/types';
 import {
   ClientMessage,
@@ -776,7 +777,8 @@ function handleRoomMessage(
     case 'VOTE': {
       // Głos wolno zmienić także po odkryciu — revealedVote pamięta kartę
       // z chwili odkrycia, a statystyki każdy klient liczy od nowa.
-      if (me.role === 'observer') return;
+      // Obserwator i moderator w trybie obserwacji nie głosują.
+      if (!canCastVote(me)) return;
       // P1-5: karta musi pochodzić z aktualnej talii.
       if (!room.customDeck.includes(msg.card)) {
         sendError(conn, 'INVALID_MESSAGE', 'Karta spoza talii');
