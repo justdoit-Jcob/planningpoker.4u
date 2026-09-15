@@ -87,6 +87,8 @@ Przy dołączeniu serwer nadaje UUID oraz **token podpisany HMAC** nad parą `ro
 
 Wszystkie wiadomości WebSocket przechodzą przez jeden schemat z walidacją runtime (`src/protocol.ts`): nieznane typy są odrzucane, głos musi należeć do aktualnej talii pokoju, długości tekstów są ograniczone, ramka nie może przekroczyć 64 KB, a reakcje są throttlowane.
 
+Własne akcje widać od razu. Klient nakłada je lokalnie (`src/optimistic.ts`) i numeruje każdą wiadomość; serwer odsyła ten numer jako `ack` w najbliższym stanie pokoju wysłanym do nadawcy (albo w osobnej ramce `ACK`) i od tej chwili obowiązuje jego stan. Odrzucona akcja cofa się po jednym okrążeniu.
+
 ---
 
 ## 🛠️ Stos Technologiczny
@@ -271,6 +273,7 @@ Uruchamia zestaw `node:test` przez `tsx`. Testy pokrywają `src/utils/stats.ts`,
 │   │   ├── roomId.test.ts     # Testy generatora identyfikatorów
 │   │   ├── stats.ts           # Średnia, mediana, konsensus, wstrzymania
 │   │   └── stats.test.ts      # Testy jednostkowe silnika statystyk
+│   ├── optimistic.ts          # Własne akcje od razu na ekranie, potwierdzane przez ack
 │   ├── protocol.ts            # Schemat wiadomości WebSocket, walidacja, limity
 │   ├── transport.ts           # Połączenie realtime: WebSocket z zapasowym long-pollingiem
 │   ├── types.ts               # Wspólne typy, talie i pomocnicy ról

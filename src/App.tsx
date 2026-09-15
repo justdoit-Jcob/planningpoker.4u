@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   DECK_PRESETS,
   DeckType,
@@ -18,6 +18,8 @@ import { SettingsModal } from './components/SettingsModal';
 import { ReactionsOverlay } from './components/ReactionsOverlay';
 import { soundEffects } from './utils/audio';
 import { Connection, openConnection } from './transport';
+import { applyOptimistic, PendingAction } from './optimistic';
+import { ClientMessage, LIMITS } from './protocol';
 
 interface Identity {
   userId: string;
@@ -27,6 +29,8 @@ interface Identity {
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 30000;
 const REACTION_TTL_MS = 3000;
+/** Bezpiecznik: akcja bez potwierdzenia (np. starszy serwer) nie wisi w kolejce na zawsze. */
+const PENDING_TIMEOUT_MS = 5000;
 
 /**
  * Tożsamość nadaje serwer. Trzymamy ją per pokój, żeby wznowienie połączenia
@@ -68,7 +72,17 @@ export default function App() {
   });
 
   const [isJoined, setIsJoined] = useState(false);
-  const [room, setRoom] = useState<RoomState | null>(null);
+  // Stan od serwera oraz własne akcje czekające na potwierdzenie (ack).
+  // Wyświetlany pokój to stan serwera z nałożonymi akcjami — patrz optimistic.ts.
+  const [serverRoom, setServerRoom] = useState<RoomState | null>(null);
+  const [pending, setPending] = useState<PendingAction[]>([]);
+  const room = useMemo(
+    () =>
+      serverRoom && pending.length > 0
+        ? pending.reduce((r, p) => applyOptimistic(r, selfId, p.msg), serverRoom)
+        : serverRoom,
+    [serverRoom, pending, selfId]
+  );
   const [isConnected, setIsConnected] = useState(false);
   const [reactions, setReactions] = useState<ReactionEvent[]>([]);
 
@@ -106,9 +120,44 @@ export default function App() {
     avatarColor: '#3B82F6',
   });
 
-  // Send message to the realtime server
-  const sendMessage = useCallback((msg: object) => {
-    connectionRef.current?.send(msg);
+  /**
+   * Wysyła akcję z numerem kolejnym i od razu nakłada ją lokalnie
+   * (optimistic.ts). Serwer odsyła numer jako ack — wtedy akcja znika
+   * z kolejki, a na ekranie zostaje już stan serwera.
+   */
+  const seqRef = useRef(0);
+  const sendMessage = useCallback((msg: ClientMessage): boolean => {
+    const seq = ++seqRef.current;
+    if (!connectionRef.current?.send({ ...msg, seq })) return false;
+    setPending((prev) => [...prev, { seq, msg }]);
+    window.setTimeout(() => setPending((prev) => prev.filter((p) => p.seq !== seq)), PENDING_TIMEOUT_MS);
+    return true;
+  }, []);
+
+  /** Potwierdzone przez serwer akcje schodzą z kolejki — obowiązuje jego stan. */
+  const acknowledge = useCallback((ack: number) => {
+    setPending((prev) => prev.filter((p) => p.seq > ack));
+  }, []);
+
+  const showReaction = useCallback((reaction: ReactionEvent) => {
+    setReactions((prev) => [...prev, reaction]);
+    const timer = window.setTimeout(() => {
+      reactionTimersRef.current.delete(timer);
+      setReactions((prev) => prev.filter((r) => r.id !== reaction.id));
+    }, REACTION_TTL_MS);
+    reactionTimersRef.current.add(timer);
+  }, []);
+
+  // Własne reakcje pokazane od razu przy kliknięciu — ich echo z serwera pomijamy.
+  const ownReactionEchoesRef = useRef<{ emoji: string; at: number }[]>([]);
+  const reactionTimesRef = useRef<number[]>([]);
+  const consumeOwnReactionEcho = useCallback((emoji: string): boolean => {
+    const now = Date.now();
+    const echoes = ownReactionEchoesRef.current.filter((e) => now - e.at < REACTION_TTL_MS);
+    const index = echoes.findIndex((e) => e.emoji === emoji);
+    if (index >= 0) echoes.splice(index, 1);
+    ownReactionEchoesRef.current = echoes;
+    return index >= 0;
   }, []);
 
   const clearReconnectTimer = useCallback(() => {
@@ -125,6 +174,8 @@ export default function App() {
 
       // Stare połączenie nie może wywołać ponownego łączenia — close() nie woła onClose.
       connectionRef.current?.close();
+      // Nowe połączenie nie potwierdzi akcji wysłanych starym — zaczynamy od stanu serwera.
+      setPending([]);
 
       const handleOpen = () => {
         setIsConnected(true);
@@ -167,26 +218,31 @@ export default function App() {
 
             case 'ROOM_STATE':
             case 'STATE_UPDATE':
-              setRoom(data.room);
+              setServerRoom(data.room);
+              // Stan niesie potwierdzenie naszej akcji — zdejmujemy ją z kolejki
+              // w tej samej aktualizacji, więc ekran nie mignie starym stanem.
+              if (typeof data.ack === 'number') acknowledge(data.ack);
+              break;
+
+            case 'ACK':
+              // Akcja obsłużona bez zmiany stanu (np. odrzucona) — jej odbicie znika.
+              if (typeof data.ack === 'number') acknowledge(data.ack);
               break;
 
             case 'TIMER_TICK':
-              setRoom((prev) => (prev ? { ...prev, timer: data.timer } : null));
+              setServerRoom((prev) => (prev ? { ...prev, timer: data.timer } : null));
               break;
 
             case 'TIMER_FINISHED':
-              setRoom((prev) => (prev ? { ...prev, timer: data.timer } : null));
+              setServerRoom((prev) => (prev ? { ...prev, timer: data.timer } : null));
               soundEffects.playTimerBeep();
               break;
 
             case 'REACTION': {
               const reaction: ReactionEvent = data.reaction;
-              setReactions((prev) => [...prev, reaction]);
-              const timer = window.setTimeout(() => {
-                reactionTimersRef.current.delete(timer);
-                setReactions((prev) => prev.filter((r) => r.id !== reaction.id));
-              }, REACTION_TTL_MS);
-              reactionTimersRef.current.add(timer);
+              // Własną reakcję pokazaliśmy już przy kliknięciu — echo z serwera pomijamy.
+              if (reaction.userId === identityRef.current?.userId && consumeOwnReactionEcho(reaction.emoji)) break;
+              showReaction(reaction);
               break;
             }
 
@@ -218,7 +274,7 @@ export default function App() {
       });
       connectionRef.current = connection;
     },
-    [clearReconnectTimer]
+    [clearReconnectTimer, acknowledge, showReaction, consumeOwnReactionEcho]
   );
 
   // Najświeższa wersja funkcji dla ponowień wywoływanych z onClose.
@@ -317,7 +373,8 @@ export default function App() {
     reactionTimersRef.current.clear();
 
     setIsJoined(false);
-    setRoom(null);
+    setServerRoom(null);
+    setPending([]);
     setIsConnected(false);
     setReactions([]);
 
@@ -368,7 +425,20 @@ export default function App() {
   };
 
   const handleSendReaction = (emoji: string) => {
-    sendMessage({ type: 'SEND_REACTION', emoji });
+    // Ten sam limit co na serwerze — reakcja pokazana lokalnie musi też dotrzeć do innych.
+    const now = Date.now();
+    reactionTimesRef.current = reactionTimesRef.current.filter((t) => now - t < LIMITS.reactionWindowMs);
+    if (reactionTimesRef.current.length >= LIMITS.reactionBurst) return;
+    if (!sendMessage({ type: 'SEND_REACTION', emoji })) return;
+    reactionTimesRef.current.push(now);
+    ownReactionEchoesRef.current.push({ emoji, at: now });
+    showReaction({
+      id: `local-${now}-${Math.random().toString(36).slice(2)}`,
+      emoji,
+      userId: selfId,
+      userName: room?.participants[selfId]?.name ?? '',
+      timestamp: now,
+    });
   };
 
   // Participant info
@@ -426,6 +496,8 @@ export default function App() {
               onReveal={handleReveal}
               onReset={handleReset}
               onCompleteRound={handleCompleteRound}
+              revealPending={pending.some((p) => p.msg.type === 'REVEAL')}
+              savePending={pending.some((p) => p.msg.type === 'COMPLETE_ROUND')}
               onInvite={() => {
                 const url = window.location.origin + window.location.pathname + '?room=' + room.id;
                 navigator.clipboard.writeText(url);

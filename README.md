@@ -95,6 +95,8 @@ On joining, the server issues a UUID plus an **HMAC-signed token** scoped to `ro
 
 All WebSocket messages pass through a single runtime-validated schema (`src/protocol.ts`): unknown message types are dropped, votes must belong to the room's current deck, strings are length-capped, frames are limited to 64 KB, and reactions are throttled.
 
+Your own actions show up instantly. The client applies them locally (`src/optimistic.ts`) and tags every message with a sequence number; the server echoes that number back as `ack` in the next room state it sends you (or in a bare `ACK` frame), and from then on the server's state takes over. A rejected action simply rolls back within one round trip.
+
 ---
 
 ## 🛠️ Tech Stack
@@ -281,6 +283,7 @@ Runs the `node:test` suite through `tsx`. Coverage focuses on `src/utils/stats.t
 │   │   ├── roomId.test.ts     # Unit tests for the room ID generator
 │   │   ├── stats.ts           # Median, average, consensus and abstention calculations
 │   │   └── stats.test.ts      # Unit tests for the statistics engine
+│   ├── optimistic.ts          # Own actions applied instantly, reconciled by server ack
 │   ├── protocol.ts            # WebSocket message schema, runtime validation, limits
 │   ├── transport.ts           # Realtime connection: WebSocket with HTTP long-polling fallback
 │   ├── types.ts               # Shared TypeScript schemas, decks & role helpers

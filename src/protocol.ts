@@ -275,6 +275,16 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
   }
 }
 
+/**
+ * Numer kolejny wiadomości klienta (seq). Serwer odsyła go jako ack — w stanie
+ * pokoju wysłanym temu klientowi albo w osobnej ramce ACK — żeby klient mógł
+ * zdjąć z kolejki własne akcje nałożone optymistycznie.
+ */
+export function parseClientSeq(raw: unknown): number | null {
+  const seq = asRecord(raw)?.seq;
+  return typeof seq === 'number' && Number.isSafeInteger(seq) && seq >= 0 ? seq : null;
+}
+
 /** Rola dozwolona do samodzielnego nadania (P0-2). */
 export function coerceSelfAssignableRole(role: ParticipantRole): SelfAssignableRole {
   return role === 'observer' ? 'observer' : 'voter';

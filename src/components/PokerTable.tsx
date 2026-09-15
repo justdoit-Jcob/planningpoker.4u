@@ -13,6 +13,10 @@ interface PokerTableProps {
   onReset: () => void;
   onCompleteRound: (score: string) => void;
   onInvite: () => void;
+  /** Odkrycie czeka na potwierdzenie serwera — przycisk reaguje od razu. */
+  revealPending?: boolean;
+  /** Zapis wyniku czeka na potwierdzenie serwera. */
+  savePending?: boolean;
 }
 
 export const PokerTable: React.FC<PokerTableProps> = ({
@@ -22,6 +26,8 @@ export const PokerTable: React.FC<PokerTableProps> = ({
   onReset,
   onCompleteRound,
   onInvite,
+  revealPending = false,
+  savePending = false,
 }) => {
   const participants = Object.values(room.participants) as Participant[];
   // Przy stole siedzą wszyscy, którzy mogą oddać głos — także moderator (P2-1).
@@ -114,7 +120,7 @@ export const PokerTable: React.FC<PokerTableProps> = ({
               <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-1">
                 <button
                   onClick={onReveal}
-                  disabled={votesCount === 0}
+                  disabled={votesCount === 0 || revealPending}
                   className={`min-h-[44px] px-5 sm:px-6 py-2.5 rounded-xl font-bold text-sm shadow-xl flex items-center justify-center gap-2 transition transform active:scale-95 cursor-pointer ${
                     allVoted
                       ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white ring-4 ring-emerald-500/20 animate-pulse'
@@ -122,7 +128,7 @@ export const PokerTable: React.FC<PokerTableProps> = ({
                   }`}
                 >
                   <Eye className="size-4" />
-                  <span>Odkryj karty</span>
+                  <span>{revealPending ? 'Odkrywanie…' : 'Odkryj karty'}</span>
                 </button>
 
                 <button
@@ -189,10 +195,11 @@ export const PokerTable: React.FC<PokerTableProps> = ({
                 {suggestedScore && (
                   <button
                     onClick={handleFinishRound}
+                    disabled={savePending}
                     className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 transition flex items-center justify-center gap-1.5 cursor-pointer"
                     title="Zapisz ten wynik w historii i rozpocznij kolejną rundę"
                   >
-                    <span>Zapisz wynik ({suggestedScore}) i dalej</span>
+                    <span>{savePending ? 'Zapisywanie…' : `Zapisz wynik (${suggestedScore}) i dalej`}</span>
                   </button>
                 )}
               </div>

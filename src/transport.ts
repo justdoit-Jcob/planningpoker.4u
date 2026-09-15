@@ -46,7 +46,8 @@ export interface ConnectionHandlers {
 }
 
 export interface Connection {
-  send(msg: object): void;
+  /** Wysyła wiadomość; false, gdy połączenie nie jest otwarte i wiadomość przepadła. */
+  send(msg: object): boolean;
   /** Rozłączenie na życzenie — nie wywołuje onClose. */
   close(): void;
   readonly state: ConnectionState;
@@ -339,7 +340,9 @@ export function openConnection(handlers: ConnectionHandlers): Connection {
 
   return {
     send(msg) {
-      if (state === 'open') transport.send(JSON.stringify(msg));
+      if (state !== 'open') return false;
+      transport.send(JSON.stringify(msg));
+      return true;
     },
     close() {
       stopProbe();

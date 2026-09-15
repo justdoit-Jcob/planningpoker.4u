@@ -21,6 +21,7 @@ import {
   POLLING,
   ServerErrorCode,
   parseClientMessage,
+  parseClientSeq,
 } from './src/protocol';
 import { calculateVoteStats } from './src/utils/stats';
 
@@ -60,6 +61,12 @@ interface ClientContext {
   userId: string | null;
   /** Znaczniki czasu ostatnich reakcji — throttling (P2-6). */
   reactionTimes: number[];
+  /**
+   * Numer (seq) właśnie obsługiwanej wiadomości, jeszcze niepotwierdzony.
+   * Pierwszy stan pokoju wysłany temu klientowi niesie go jako ack; jeśli
+   * żaden nie poszedł, handleClientMessage odsyła osobną ramkę ACK.
+   */
+  pendingAck: number | null;
 }
 const connections = new Map<ClientConnection, ClientContext>();
 
@@ -144,30 +151,30 @@ function clientsInRoom(roomId: string): { client: ClientConnection; ctx: ClientC
   return result;
 }
 
-/** Rozsyła stan pokoju, redagując głosy osobno dla każdego odbiorcy. */
+/**
+ * Rozsyła stan pokoju, redagując głosy osobno dla każdego odbiorcy.
+ *
+ * Nadawca właśnie obsługiwanej wiadomości dostaje w swoim egzemplarzu ack —
+ * potwierdzenie, po którym klient zdejmuje akcję nałożoną optymistycznie.
+ */
 function broadcastRoomState(room: RoomState, action?: string): void {
   const targets = clientsInRoom(room.id);
   if (targets.length === 0) return;
 
   // Po odkryciu kart wszyscy widzą to samo — wystarczy jedna serializacja.
-  if (room.votingState === 'revealed') {
-    const payload = JSON.stringify({
-      type: 'STATE_UPDATE',
-      room: serializeRoomFor(room, null),
-      ...(action ? { action } : {}),
-    });
-    targets.forEach(({ client }) => client.send(payload));
-    return;
-  }
+  const shared = room.votingState === 'revealed' ? serializeRoomFor(room, null) : null;
 
   targets.forEach(({ client, ctx }) => {
-    client.send(
-      JSON.stringify({
-        type: 'STATE_UPDATE',
-        room: serializeRoomFor(room, ctx.userId),
-        ...(action ? { action } : {}),
-      })
-    );
+    const message: Record<string, unknown> = {
+      type: 'STATE_UPDATE',
+      room: shared ?? serializeRoomFor(room, ctx.userId),
+      ...(action ? { action } : {}),
+    };
+    if (ctx.pendingAck !== null) {
+      message.ack = ctx.pendingAck;
+      ctx.pendingAck = null;
+    }
+    client.send(JSON.stringify(message));
   });
 }
 
@@ -385,13 +392,16 @@ setInterval(() => {
 /* ---------- Obsługa połączeń (wspólna dla obu transportów) ---------- */
 
 function openClient(conn: ClientConnection): ClientContext {
-  const ctx: ClientContext = { roomId: null, userId: null, reactionTimes: [] };
+  const ctx: ClientContext = { roomId: null, userId: null, reactionTimes: [], pendingAck: null };
   connections.set(conn, ctx);
   return ctx;
 }
 
 /** Przetwarza jedną wiadomość klienta, niezależnie od drogi, którą przyszła. */
 function handleClientMessage(conn: ClientConnection, ctx: ClientContext, raw: unknown): void {
+  // Numer do potwierdzenia — pierwszy stan pokoju wysłany temu klientowi
+  // zabierze go jako ack (broadcastRoomState).
+  ctx.pendingAck = parseClientSeq(raw);
   try {
     const msg = parseClientMessage(raw);
     if (!msg) {
@@ -433,6 +443,12 @@ function handleClientMessage(conn: ClientConnection, ctx: ClientContext, raw: un
     handleRoomMessage(conn, ctx, room, me, msg);
   } catch (err) {
     console.error('Error handling client message:', err);
+  } finally {
+    // Akcja bez rozesłania stanu (odrzucona, PING, reakcja) też dostaje potwierdzenie.
+    if (ctx.pendingAck !== null) {
+      if (conn.isOpen()) conn.send(JSON.stringify({ type: 'ACK', ack: ctx.pendingAck }));
+      ctx.pendingAck = null;
+    }
   }
 }
 
