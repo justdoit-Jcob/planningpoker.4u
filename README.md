@@ -68,14 +68,14 @@ The server — not the browser — is the source of truth. Every rule below is e
 | Set the round topic | ✅ | ✅ | ✅ |
 | Send reactions | ✅ | ✅ | ✅ |
 | Start / pause / set the timer | ✅ | ✅ | ✅ |
+| Reveal cards | ✅ | ✅ | ✅ |
+| Save score & advance the round | ✅ | ✅ | ✅ |
 | Reset the round | ✅ | ✅ | ✅ |
-| **Reveal cards** | — | — | ✅ |
-| **Save score & advance the round** | — | — | ✅ |
 | **Clear history** | — | — | ✅ |
 | **Change the estimation deck** | — | — | ✅ |
 | **Change room settings / rename** | — | — | ✅ |
 
-The timer and round reset are deliberately left open to everyone — in a small team, gating them creates more friction than it prevents.
+The round flow — timer, revealing cards, saving the score and resetting — is deliberately left open to everyone: in a small team, gating it creates more friction than it prevents.
 
 ### How the moderator is chosen
 
@@ -302,7 +302,7 @@ Runs the `node:test` suite through `tsx`. Coverage focuses on `src/utils/stats.t
    - Anyone can set the current topic or story title.
    - Pick a card from the bottom deck. Other people see only that you are ready — never which card you chose.
 3. **Reveal**:
-   - The moderator clicks **Reveal Cards**, or auto-reveal fires once every voter has chosen.
+   - Anyone at the table clicks **Reveal Cards**, or auto-reveal fires once every voter has chosen.
    - The team sees the average, median, agreement percentage and distribution, with confetti on full consensus — or coffee confetti if the room mostly voted ☕.
 4. **Next Round**:
    - **Save Score & Next** archives the round to History and advances the counter; **Reset** just clears the table.

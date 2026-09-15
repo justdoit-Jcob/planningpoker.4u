@@ -60,14 +60,14 @@ Zbudowana z użyciem **React 19**, **TypeScript**, **Tailwind CSS v4**, **Node.j
 | Ustawienie tematu rundy | ✅ | ✅ | ✅ |
 | Wysyłanie reakcji | ✅ | ✅ | ✅ |
 | Start / pauza / ustawienie timera | ✅ | ✅ | ✅ |
+| Odkrycie kart | ✅ | ✅ | ✅ |
+| Zapis wyniku i przejście dalej | ✅ | ✅ | ✅ |
 | Reset rundy | ✅ | ✅ | ✅ |
-| **Odkrycie kart** | — | — | ✅ |
-| **Zapis wyniku i przejście dalej** | — | — | ✅ |
 | **Czyszczenie historii** | — | — | ✅ |
 | **Zmiana skali estymacji** | — | — | ✅ |
 | **Zmiana ustawień i nazwy pokoju** | — | — | ✅ |
 
-Timer i reset rundy są świadomie otwarte dla wszystkich — w małym zespole ich blokowanie generuje więcej tarcia niż pożytku.
+Przebieg rundy — timer, odkrycie kart, zapis wyniku i reset — jest świadomie otwarty dla wszystkich: w małym zespole jego blokowanie generuje więcej tarcia niż pożytku.
 
 ### Jak wybierany jest moderator
 
@@ -292,7 +292,7 @@ Uruchamia zestaw `node:test` przez `tsx`. Testy pokrywają `src/utils/stats.ts`,
    - Dowolna osoba może wpisać tytuł estymowanego zadania.
    - Uczestnicy wybierają kartę z dolnego paska. Pozostali widzą wyłącznie to, że jesteś gotowy — nigdy którą kartę wybrałeś.
 3. **Odkrycie kart (Reveal)**:
-   - Moderator klika „Odkryj karty" albo odkrycie następuje automatycznie, gdy wszyscy głosujący oddadzą głos.
+   - Dowolny uczestnik klika „Odkryj karty" albo odkrycie następuje automatycznie, gdy wszyscy głosujący oddadzą głos.
    - Pojawia się podsumowanie: średnia, mediana, stopień zgodności i rozkład głosów — z konfetti przy pełnej zgodzie albo konfetti z kawą, gdy pokój wybrał głównie ☕.
 4. **Kolejna runda**:
    - „Zapisz wynik i dalej" archiwizuje rundę w historii i podbija licznik; „Resetuj" tylko czyści stół.

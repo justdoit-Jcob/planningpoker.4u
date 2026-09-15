@@ -103,14 +103,12 @@ export type ClientMessageType = ClientMessage['type'];
 /**
  * Akcje zarezerwowane dla moderatora.
  *
- * Reset rundy oraz timer celowo pozostają otwarte dla wszystkich — w małym
- * zespole blokowanie ich generuje więcej tarcia niż pożytku. Odkrycie kart,
- * historia i ustawienia (w tym zmiana talii) zmieniają stan całej sesji,
- * więc wymagają moderatora.
+ * Przebieg rundy — odkrycie kart, zapis wyniku, reset i timer — jest celowo
+ * otwarty dla wszystkich uczestników: w małym zespole blokowanie go generuje
+ * więcej tarcia niż pożytku. Historia i ustawienia (w tym zmiana talii)
+ * zmieniają konfigurację całej sesji, więc wymagają moderatora.
  */
 export const MODERATOR_ONLY: ReadonlySet<ClientMessageType> = new Set<ClientMessageType>([
-  'REVEAL',
-  'COMPLETE_ROUND',
   'CLEAR_HISTORY',
   'CHANGE_DECK',
   'UPDATE_SETTINGS',
